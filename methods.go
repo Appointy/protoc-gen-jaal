@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"os"
 	"strings"
 
 	"github.com/golang/protobuf/proto"
@@ -33,7 +34,7 @@ type InputClass struct {
 	Fields       []MsgFields
 }
 
-func scalarMap(scalar string) string {
+func (m *jaalModule) scalarMap(scalar string) string {
 	switch scalar {
 	case "BOOL":
 		return "bool"
@@ -69,7 +70,7 @@ func scalarMap(scalar string) string {
 	}
 	return ""
 }
-func fieldElementType(valKey pgs.FieldTypeElem) string {
+func (m *jaalModule) fieldElementType(valKey pgs.FieldTypeElem) string {
 	switch valKey.ProtoType().Proto().String() {
 	case "TYPE_MESSAGE":
 		obj := valKey.Embed()
@@ -79,7 +80,7 @@ func fieldElementType(valKey pgs.FieldTypeElem) string {
 		return enum.Name().String()
 	default:
 		tType := strings.Split(valKey.ProtoType().Proto().String(), "_")
-		return scalarMap(tType[len(tType)-1])
+		return m.scalarMap(tType[len(tType)-1])
 	}
 }
 
@@ -236,7 +237,7 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 
 	msg := InputClass{Name: inputData.Name().UpperCamelCase().String()}
 	if PossibleReqObjects[inputData.Name().String()] {
-		msg.InputObjName = InputAppend(inputData.Name().UpperCamelCase().String())
+		msg.InputObjName = m.InputAppend(inputData.Name().UpperCamelCase().String())
 	}else{
 		msg.InputObjName = inputData.Name().UpperCamelCase().String()
 	}
@@ -287,9 +288,9 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 		} else if fields.Type().IsMap() {
 
 			msgArg += "map["
-			msgArg += fieldElementType(fields.Type().Key())
+			msgArg += m.fieldElementType(fields.Type().Key())
 			msgArg += "]"
-			msgArg += fieldElementType(fields.Type().Element())
+			msgArg += m.fieldElementType(fields.Type().Element())
 
 		} else if fields.Descriptor().GetType().String() == "TYPE_MESSAGE" {
 
@@ -311,9 +312,9 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 
 			tmsg := strings.Split(fields.Descriptor().GetTypeName(), ".")
 			msgArg += tmsg[len(tmsg)-1]
-		} else { // todo till here
+		} else {
 			tmsg := strings.Split(fields.Descriptor().GetType().String(), "_")
-			msgArg += scalarMap(tmsg[len(tmsg)-1])
+			msgArg += m.scalarMap(tmsg[len(tmsg)-1])
 
 		}
 
@@ -393,9 +394,9 @@ func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]str
 		} else if fields.Type().IsMap() {
 
 			msgArg += "map["
-			msgArg += fieldElementType(fields.Type().Key())
+			msgArg += m.fieldElementType(fields.Type().Key())
 			msgArg += "]"
-			msgArg += fieldElementType(fields.Type().Element())
+			msgArg += m.fieldElementType(fields.Type().Element())
 			tVal += "in."
 			tVal += fields.Name().UpperCamelCase().String()
 
@@ -424,7 +425,7 @@ func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]str
 
 		} else {
 			tTypeArr := strings.Split(fields.Descriptor().GetType().String(), "_")
-			msgArg += scalarMap(tTypeArr[len(tTypeArr)-1])
+			msgArg += m.scalarMap(tTypeArr[len(tTypeArr)-1])
 			tVal += "in."
 			tVal += fields.Name().UpperCamelCase().String()
 
@@ -466,7 +467,7 @@ type Service struct {
 	Mutations []Mutation
 }
 
-func InputAppend(str string) string {
+func (m *jaalModule) InputAppend(str string) string {
 	if strings.HasSuffix(strings.ToLower(str), "req") {
 		str = str[:len(str)-3]
 		str += "Input"
@@ -480,28 +481,39 @@ func InputAppend(str string) string {
 	}
 }
 
+func (m *jaalModule)GetOption(rpc pgs.Method)(bool,pbt.MethodOptions,error){
+	opt := rpc.Descriptor().GetOptions()
+	x, err := proto.GetExtension(opt, pbt.E_Schema)
+	if opt == nil {
+		return false,pbt.MethodOptions{},nil
+	}
+	if err != nil {
+		if err == proto.ErrMissingExtension {
+			return false,pbt.MethodOptions{},nil
+		}
+
+		return false, pbt.MethodOptions{} , err
+
+	}
+
+	option := *x.(*pbt.MethodOptions)
+	return true,option,nil
+}
+
 func (m *jaalModule) ServiceInput(service pgs.Service) (string, error) {
 	var varQuery []Query
 	var varMutation []Mutation
 
 	for _, rpc := range service.Methods() {
 
-		opt := rpc.Descriptor().GetOptions()
-		x, err := proto.GetExtension(opt, pbt.E_Schema)
-		if opt == nil {
+		flag,option,err := m.GetOption(rpc)
+		if err!=nil{
+			m.Log("Error",err)
+			os.Exit(0)
+		}
+		if flag == false{
 			continue
 		}
-		if err != nil {
-			if err == proto.ErrMissingExtension {
-				continue
-			}
-
-			return "", err
-
-		}
-
-		option := *x.(*pbt.MethodOptions)
-
 		if option.GetMutation() == "" {
 			fieldName := option.GetQuery()
 			inType := "*" + rpc.Input().Name().UpperCamelCase().String()
@@ -553,7 +565,7 @@ func (m *jaalModule) RPCFieldType(field pgs.Field) string {
 			typeName := tTypeArr[len(tTypeArr)-1]
 			return "*" + typeName
 		} else if field.Type().IsMap() {
-			return "*[" + fieldElementType(field.Type().Key()) + "]" + fieldElementType(field.Type().Element())
+			return "*[" + m.fieldElementType(field.Type().Key()) + "]" + m.fieldElementType(field.Type().Element())
 		}
 		obj := field.Type().Embed()
 		return "*" + obj.Name().String()
@@ -568,7 +580,7 @@ func (m *jaalModule) RPCFieldType(field pgs.Field) string {
 	default:
 		tTypeArr := strings.Split(field.Descriptor().GetType().String(), "_")
 		scalarType := tTypeArr[len(tTypeArr)-1]
-		return scalarMap(scalarType)
+		return m.scalarMap(scalarType)
 	}
 }
 func (m *jaalModule)checkImportedField(service pgs.Service,field pgs.Field)string{
@@ -582,18 +594,14 @@ func (m *jaalModule)checkImportedField(service pgs.Service,field pgs.Field)strin
 func (m *jaalModule) ServiceStructInput(service pgs.Service) (string, error) {
 	var inputServiceStruct []InputServiceStruct
 	for _, rpc := range service.Methods() {
-		opt := rpc.Descriptor().GetOptions()
-		if opt == nil {
+		flag,option,err := m.GetOption(rpc)
+		if err!=nil{
+			m.Log("Error",err)
+			os.Exit(0)
+		}
+		if flag == false{
 			continue
 		}
-		x, err := proto.GetExtension(opt, pbt.E_Schema)
-		if err != nil {
-			if err == proto.ErrMissingExtension {
-				continue
-			}
-			return "", err
-		}
-		option := *x.(*pbt.MethodOptions)
 		if option.GetMutation() == "" {
 			continue
 		}
@@ -647,18 +655,14 @@ func (m *jaalModule)checkImported(service pgs.Service,message pgs.Message)string
 func (m *jaalModule) ServiceStructPayload(service pgs.Service) (string, error) {
 	var payloadService []PayloadServiceStruct
 	for _, rpc := range service.Methods() {
-		opt := rpc.Descriptor().GetOptions()
-		if opt == nil {
+		flag,option,err := m.GetOption(rpc)
+		if err!=nil{
+			m.Log("Error",err)
+			os.Exit(0)
+		}
+		if flag == false{
 			continue
 		}
-		x, err := proto.GetExtension(opt, pbt.E_Schema)
-		if err != nil {
-			if err == proto.ErrMissingExtension {
-				continue
-			}
-			return "", err
-		}
-		option := *x.(*pbt.MethodOptions)
 		if option.GetMutation() == "" {
 			continue
 		}
@@ -676,21 +680,17 @@ func (m *jaalModule) ServiceStructPayload(service pgs.Service) (string, error) {
 }
 func (m *jaalModule) getPossibleReqObjects(service pgs.Service, PossibleReqObjects map[string]bool) error {
 	for _, rpc := range service.Methods() {
-		opt := rpc.Descriptor().GetOptions()
-		if opt == nil {
+		flag,option,err := m.GetOption(rpc)
+		if err!=nil{
+			m.Log("Error",err)
+			os.Exit(0)
+		}
+		if flag == false{
 			continue
 		}
-		x, err := proto.GetExtension(opt, pbt.E_Schema)
-
-		if err != nil {
-			if err == proto.ErrMissingExtension {
-				continue
-			}
-			return err
-
+		if option.GetMutation() == "" {
+			continue
 		}
-
-		option := *x.(*pbt.MethodOptions)
 
 		if option.GetQuery() != "" {
 			PossibleReqObjects[rpc.Input().Name().String()] = true
@@ -734,18 +734,17 @@ func (m *jaalModule) GetImports(target pgs.File) map[string]string {
 func (m *jaalModule) ServiceStructInputFunc(service pgs.Service, initFunctionsName map[string]bool) (string, error) {
 	var inputServiceStructFunc []InputClass
 	for _, rpc := range service.Methods() {
-		opt := rpc.Descriptor().GetOptions()
-		if opt == nil {
+		flag,option,err := m.GetOption(rpc)
+		if err!=nil{
+			m.Log("Error",err)
+			os.Exit(0)
+		}
+		if flag == false{
 			continue
 		}
-		x, err := proto.GetExtension(opt, pbt.E_Schema)
-		if err != nil {
-			if err == proto.ErrMissingExtension {
-				continue
-			}
-			return "", err
+		if option.GetMutation() == "" {
+			continue
 		}
-		option := *x.(*pbt.MethodOptions)
 		if option.GetMutation() == "" {
 			continue
 		}
@@ -767,6 +766,15 @@ func (m *jaalModule) ServiceStructInputFunc(service pgs.Service, initFunctionsNa
 			if funcPara[0] == '*' {
 				funcPara = funcPara[1:len(funcPara)]
 			}
+			go_pkg:=""
+			if ipField.Type().IsEmbed() && ipField.Type().Embed().File().Descriptor().Options != nil && ipField.Type().Embed().File().Descriptor().Options.GoPackage != nil {
+				if service.Package().ProtoName().String() != ipField.Type().Embed().Package().ProtoName().String() {
+
+					go_pkg = m.GetGoPackage(ipField.Type().Embed().File())+"."
+				}
+			}
+			//m.Log(go_pkg)
+			funcPara="*"+go_pkg+funcPara
 			field = append(field, MsgFields{TargetName: tname, FieldName: fName, FuncPara: funcPara, TargetVal: tval})
 		}
 		initFunctionsName["RegisterInput"+rpc.Name().UpperCamelCase().String()+"Input"] = true
@@ -785,23 +793,23 @@ func (m *jaalModule) ServiceStructInputFunc(service pgs.Service, initFunctionsNa
 func (m *jaalModule) ServiceStructPayloadFunc(service pgs.Service, initFunctionsName map[string]bool) (string, error) {
 	var payloadService []PayloadServiceStruct
 	for _, rpc := range service.Methods() {
-		opt := rpc.Descriptor().GetOptions()
-		if opt == nil {
+		flag,option,err := m.GetOption(rpc)
+		if err!=nil{
+			m.Log("Error",err)
+			os.Exit(0)
+		}
+		if flag == false{
 			continue
 		}
-		x, err := proto.GetExtension(opt, pbt.E_Schema)
-		if err != nil {
-			if err == proto.ErrMissingExtension {
-				continue
-			}
-			return "", err
+		if option.GetMutation() == "" {
+			continue
 		}
-		option := *x.(*pbt.MethodOptions)
 		if option.GetMutation() == "" {
 			continue
 		}
 		initFunctionsName["RegisterPayload"+rpc.Name().UpperCamelCase().String()+"Payload"] = true
-		payloadService = append(payloadService, PayloadServiceStruct{Name: rpc.Name().UpperCamelCase().String(), ReturnType: "*" + rpc.Output().Name().UpperCamelCase().String()})
+		returnType:= "*"+ m.checkImported(service,rpc.Output())+ rpc.Output().Name().UpperCamelCase().String() // "*" + rpc.Output().Name().UpperCamelCase().String()
+		payloadService = append(payloadService, PayloadServiceStruct{Name: rpc.Name().UpperCamelCase().String(), ReturnType:returnType })
 	}
 	tmp := getServiceStructPayloadFuncTemplate()
 	buf := &bytes.Buffer{}

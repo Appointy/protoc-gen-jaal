@@ -248,7 +248,7 @@ func getServiceStructInputFuncTemplate() *template.Template {
 func RegisterInput{{.Name}}Input(schema *schemabuilder.Schema) {
 	input := schema.InputObject("{{.Name}}Input", {{.Name}}Input{}) {{$name:=.Name}}
 	{{range .Fields}}
-		input.FieldFunc("{{.FieldName}}", func(target *{{$name}}Input, source *{{.FuncPara}}) {
+		input.FieldFunc("{{.FieldName}}", func(target *{{$name}}Input, source {{.FuncPara}}) {
 			target{{"."}}{{.TargetName}} = {{.TargetVal}}
 		})
 	{{end}}
