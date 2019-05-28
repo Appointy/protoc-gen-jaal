@@ -290,7 +290,11 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 			msgArg += "map["
 			msgArg += m.fieldElementType(fields.Type().Key())
 			msgArg += "]"
-			msgArg += m.fieldElementType(fields.Type().Element())
+			if fields.Type().Element().IsEmbed(){
+				msgArg +=("*" + m.fieldElementType(fields.Type().Element()) )
+			}else{
+				msgArg += m.fieldElementType(fields.Type().Element())
+			}
 
 		} else if fields.Descriptor().GetType().String() == "TYPE_MESSAGE" {
 
@@ -396,7 +400,11 @@ func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]str
 			msgArg += "map["
 			msgArg += m.fieldElementType(fields.Type().Key())
 			msgArg += "]"
-			msgArg += m.fieldElementType(fields.Type().Element())
+			if fields.Type().Element().IsEmbed(){
+				msgArg +=("*" + m.fieldElementType(fields.Type().Element()) )
+			}else{
+				msgArg += m.fieldElementType(fields.Type().Element())
+			}
 			tVal += "in."
 			tVal += fields.Name().UpperCamelCase().String()
 
