@@ -11,6 +11,10 @@ extend google.protobuf.MethodOptions {
     MethodOptions schema = 91111;
 }
 
+extend google.protobuf.MessageOptions{
+    bool skip = 91112;
+}
+
 message MethodOptions {
     oneof type {
         string query = 1;
