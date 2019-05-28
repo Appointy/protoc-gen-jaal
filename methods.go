@@ -237,6 +237,8 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 	msg := InputClass{Name: inputData.Name().UpperCamelCase().String()}
 	if PossibleReqObjects[inputData.Name().String()] {
 		msg.InputObjName = InputAppend(inputData.Name().UpperCamelCase().String())
+	}else{
+		msg.InputObjName = inputData.Name().UpperCamelCase().String()
 	}
 
 	initFunctionsName["RegisterInput"+msg.Name] = true
@@ -569,7 +571,14 @@ func (m *jaalModule) RPCFieldType(field pgs.Field) string {
 		return scalarMap(scalarType)
 	}
 }
+func (m *jaalModule)checkImportedField(service pgs.Service,field pgs.Field)string{
 
+	if service.Package().ProtoName().String() != field.Package().ProtoName().String(){
+		goPkg:= m.GetGoPackage(field.File()) //.Type().Embed().File()
+		return goPkg+ "."
+	}
+	return ""
+}
 func (m *jaalModule) ServiceStructInput(service pgs.Service) (string, error) {
 	var inputServiceStruct []InputServiceStruct
 	for _, rpc := range service.Methods() {
@@ -591,7 +600,23 @@ func (m *jaalModule) ServiceStructInput(service pgs.Service) (string, error) {
 		tInputServiceSTruct := InputServiceStruct{RpcName: rpc.Name().UpperCamelCase().String()}
 		for _, ipField := range rpc.Input().Fields() {
 			name := ipField.Name().UpperCamelCase().String()
-			tInputServiceSTruct.InputFields = append(tInputServiceSTruct.InputFields, InputField{Name: name, Type: m.RPCFieldType(ipField)})
+			ttype:= m.RPCFieldType(ipField)
+
+			go_pkg:=""
+			if ipField.Type().IsEmbed() && ipField.Type().Embed().File().Descriptor().Options != nil && ipField.Type().Embed().File().Descriptor().Options.GoPackage != nil {
+				if service.Package().ProtoName().String() != ipField.Type().Embed().Package().ProtoName().String() {
+
+					go_pkg = m.GetGoPackage(ipField.Type().Embed().File())+"."
+				}
+			}
+
+			if ttype[0]=='*'{
+				ttype= "*"+ go_pkg+ttype[1:len(ttype)]
+			}else{
+				ttype =  go_pkg+ttype
+			}
+
+			tInputServiceSTruct.InputFields = append(tInputServiceSTruct.InputFields, InputField{Name: name, Type: ttype})
 		}
 		inputServiceStruct = append(inputServiceStruct, tInputServiceSTruct)
 	}
@@ -608,6 +633,15 @@ func (m *jaalModule) ServiceStructInput(service pgs.Service) (string, error) {
 type PayloadServiceStruct struct {
 	Name       string
 	ReturnType string
+}
+
+func (m *jaalModule)checkImported(service pgs.Service,message pgs.Message)string{
+
+	if service.Package().ProtoName().String() != message.Package().ProtoName().String(){
+		goPkg:= m.GetGoPackage(message.File()) //.Type().Embed().File()
+		return goPkg+ "."
+	}
+	return ""
 }
 
 func (m *jaalModule) ServiceStructPayload(service pgs.Service) (string, error) {
@@ -628,7 +662,8 @@ func (m *jaalModule) ServiceStructPayload(service pgs.Service) (string, error) {
 		if option.GetMutation() == "" {
 			continue
 		}
-		payloadService = append(payloadService, PayloadServiceStruct{Name: rpc.Name().UpperCamelCase().String(), ReturnType: "*" + rpc.Output().Name().UpperCamelCase().String()})
+		returnType:= "*"+ m.checkImported(service,rpc.Output())+ rpc.Output().Name().UpperCamelCase().String()
+		payloadService = append(payloadService, PayloadServiceStruct{Name: rpc.Name().UpperCamelCase().String(), ReturnType:  returnType})
 	}
 	tmp := getServiceStructPayloadTemplate()
 	buf := &bytes.Buffer{}
@@ -687,11 +722,11 @@ func (m *jaalModule) GetGoPackage(target pgs.File) string {
 func (m *jaalModule) GetImports(target pgs.File) map[string]string {
 	imports := make(map[string]string)
 	for _, importFile := range target.Imports() {
-
-		key := *importFile.Descriptor().Options.GoPackage
-		key = strings.Split(key, ";")[0]
-		imports[key] = strings.Split(key, "/")[len(strings.Split(key, "/"))-1]
-
+		if importFile.Descriptor().Options!=nil && importFile.Descriptor().Options.GoPackage!=nil{
+			key := *importFile.Descriptor().Options.GoPackage
+			key = strings.Split(key, ";")[0]
+			imports[key] = strings.Split(key, "/")[len(strings.Split(key, "/"))-1]
+		}
 	}
 	return imports
 }
