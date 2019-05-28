@@ -105,7 +105,8 @@ func getServiceTemplate() *template.Template {
 func Register{{.Name}}Operations(schema *schemabuilder.Schema, client {{.Name}}Client) {
 	{{range .Queries}}
 		schema.Query().FieldFunc("{{.FieldName}}", func(ctx context.Context, args struct {
-			In {{.InType}}
+		{{range .InType}}
+		{{.Name}} {{.Type}}{{end}}
 		}) ({{.FirstReturnArgType}}, error) {
 			return client{{"."}}{{.ReturnFunc}}(ctx, args.In)
 		})
