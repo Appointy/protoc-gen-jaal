@@ -238,8 +238,8 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 	msg := InputClass{Name: inputData.Name().UpperCamelCase().String()}
 	if PossibleReqObjects[inputData.Name().String()] {
 		msg.InputObjName = m.InputAppend(inputData.Name().UpperCamelCase().String())
-	}else{
-		msg.InputObjName = inputData.Name().UpperCamelCase().String()+"Input"
+	} else {
+		msg.InputObjName = inputData.Name().UpperCamelCase().String() + "Input"
 	}
 
 	initFunctionsName["RegisterInput"+msg.Name] = true
@@ -285,28 +285,28 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 			flag = false
 			flag2 = false
 
-		}else if fields.Type().IsRepeated(){
+		} else if fields.Type().IsRepeated() {
 			msgArg = "[]"
 			tObj := fields.Type().Element()
-			if tObj.IsEmbed(){
-				msgArg+="*"
+			if tObj.IsEmbed() {
+				msgArg += "*"
 			}
-			if tObj.IsEmbed() && tObj.Embed().File().Descriptor().Options!=nil && tObj.Embed().File().Descriptor().Options.GoPackage!=nil{
+			if tObj.IsEmbed() && tObj.Embed().File().Descriptor().Options != nil && tObj.Embed().File().Descriptor().Options.GoPackage != nil {
 				if inputData.Package().ProtoName().String() != tObj.Embed().Package().ProtoName().String() {
-					msgArg+= m.GetGoPackage(tObj.Embed().File())
+					msgArg += m.GetGoPackage(tObj.Embed().File())
 					msgArg += "."
 				}
 			}
 			ttype := m.fieldElementType(tObj)
-			msgArg+= ttype
+			msgArg += ttype
 		} else if fields.Type().IsMap() {
 
 			msgArg += "map["
 			msgArg += m.fieldElementType(fields.Type().Key())
 			msgArg += "]"
-			if fields.Type().Element().IsEmbed(){
-				msgArg +=("*" + m.fieldElementType(fields.Type().Element()) )
-			}else{
+			if fields.Type().Element().IsEmbed() {
+				msgArg += ("*" + m.fieldElementType(fields.Type().Element()))
+			} else {
 				msgArg += m.fieldElementType(fields.Type().Element())
 			}
 
@@ -409,29 +409,29 @@ func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]str
 			tVal += fields.Name().UpperCamelCase().String()
 			tVal += "}"
 
-		}else if fields.Type().IsRepeated(){
+		} else if fields.Type().IsRepeated() {
 			msgArg = "[]"
 			tObj := fields.Type().Element()
-			if tObj.IsEmbed(){
-				msgArg+="*"
+			if tObj.IsEmbed() {
+				msgArg += "*"
 			}
-			if tObj.IsEmbed() && tObj.Embed().File().Descriptor().Options!=nil && tObj.Embed().File().Descriptor().Options.GoPackage!=nil{
+			if tObj.IsEmbed() && tObj.Embed().File().Descriptor().Options != nil && tObj.Embed().File().Descriptor().Options.GoPackage != nil {
 				if payloadData.Package().ProtoName().String() != tObj.Embed().Package().ProtoName().String() {
-					msgArg+= m.GetGoPackage(tObj.Embed().File())
+					msgArg += m.GetGoPackage(tObj.Embed().File())
 					msgArg += "."
 				}
 			}
-			ttype:= m.fieldElementType(tObj)
-			msgArg+=ttype
-			tVal += "in."+fields.Name().UpperCamelCase().String()
+			ttype := m.fieldElementType(tObj)
+			msgArg += ttype
+			tVal += "in." + fields.Name().UpperCamelCase().String()
 		} else if fields.Type().IsMap() {
 
 			msgArg += "map["
 			msgArg += m.fieldElementType(fields.Type().Key())
 			msgArg += "]"
-			if fields.Type().Element().IsEmbed(){
-				msgArg +=("*" + m.fieldElementType(fields.Type().Element()) )
-			}else{
+			if fields.Type().Element().IsEmbed() {
+				msgArg += ("*" + m.fieldElementType(fields.Type().Element()))
+			} else {
 				msgArg += m.fieldElementType(fields.Type().Element())
 			}
 			tVal += "in."
@@ -482,13 +482,16 @@ func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]str
 
 	return buf.String(), nil
 }
-type Fields struct{
+
+type Fields struct {
 	Name string
 	Type string
 }
 type Query struct {
-	FieldName          string
-	InType             []Fields
+	FieldName string
+	InType    []Fields
+	InputName string
+	ReturnType []Fields
 	FirstReturnArgType string
 	ReturnFunc         string
 }
@@ -521,23 +524,23 @@ func (m *jaalModule) InputAppend(str string) string {
 	}
 }
 
-func (m *jaalModule)GetOption(rpc pgs.Method)(bool,pbt.MethodOptions,error){
+func (m *jaalModule) GetOption(rpc pgs.Method) (bool, pbt.MethodOptions, error) {
 	opt := rpc.Descriptor().GetOptions()
 	x, err := proto.GetExtension(opt, pbt.E_Schema)
 	if opt == nil {
-		return false,pbt.MethodOptions{},nil
+		return false, pbt.MethodOptions{}, nil
 	}
 	if err != nil {
 		if err == proto.ErrMissingExtension {
-			return false,pbt.MethodOptions{},nil
+			return false, pbt.MethodOptions{}, nil
 		}
 
-		return false, pbt.MethodOptions{} , err
+		return false, pbt.MethodOptions{}, err
 
 	}
 
 	option := *x.(*pbt.MethodOptions)
-	return true,option,nil
+	return true, option, nil
 }
 
 func (m *jaalModule) ServiceInput(service pgs.Service) (string, error) {
@@ -546,12 +549,12 @@ func (m *jaalModule) ServiceInput(service pgs.Service) (string, error) {
 
 	for _, rpc := range service.Methods() {
 
-		flag,option,err := m.GetOption(rpc)
-		if err!=nil{
-			m.Log("Error",err)
+		flag, option, err := m.GetOption(rpc)
+		if err != nil {
+			m.Log("Error", err)
 			os.Exit(0)
 		}
-		if flag == false{
+		if flag == false {
 			continue
 		}
 		if option.GetMutation() == "" {
@@ -560,51 +563,58 @@ func (m *jaalModule) ServiceInput(service pgs.Service) (string, error) {
 			firstReturnArgType := "*" + rpc.Output().Name().UpperCamelCase().String()
 			returnFunc := rpc.Name().UpperCamelCase().String()
 			var inType []Fields
-			for _,field := range rpc.Input().Fields(){
+			var returnType []Fields
+			for _, field := range rpc.Input().Fields() {
 				name := field.Name().UpperCamelCase().String()
 				tType := ""
-				if strings.ToLower(name)=="id"{
+				if strings.ToLower(name) == "id" {
 					tType = "schemabuilder.ID"
-				}else if field.Type().IsRepeated(){
+				} else if field.Type().IsRepeated() {
 					tType = "[]"
 					tObj := field.Type().Element()
-					if tObj.IsEmbed(){
-						tType+="*"
+					if tObj.IsEmbed() {
+						tType += "*"
 					}
-					if tObj.IsEmbed() && tObj.Embed().File().Descriptor().Options!=nil && tObj.Embed().File().Descriptor().Options.GoPackage!=nil{
+					if tObj.IsEmbed() && tObj.Embed().File().Descriptor().Options != nil && tObj.Embed().File().Descriptor().Options.GoPackage != nil {
 						if service.Package().ProtoName().String() != tObj.Embed().Package().ProtoName().String() {
-							tType+= m.GetGoPackage(tObj.Embed().File())
+							tType += m.GetGoPackage(tObj.Embed().File())
 							tType += "."
 						}
 					}
-					tType+=m.fieldElementType(tObj)
-				}else if field.Type().IsEmbed() && field.Type().Embed().File().Descriptor().Options != nil && field.Type().Embed().File().Descriptor().Options.GoPackage != nil {
+					tType += m.fieldElementType(tObj)
+				} else if field.Type().IsEmbed() && field.Type().Embed().File().Descriptor().Options != nil && field.Type().Embed().File().Descriptor().Options.GoPackage != nil {
 					if service.Package().ProtoName().String() != field.Type().Embed().Package().ProtoName().String() {
 						go_pkg := m.GetGoPackage(field.Type().Embed().File())
 						tType += go_pkg
 						tType += "."
 					}
-					if field.Type().IsEmbed(){
-						tType= "*"+tType
+					if field.Type().IsEmbed() {
+						tType = "*" + tType
 					}
 					funcRType := m.RPCFieldType(field)
-					if funcRType[0]=='*'{
+					if funcRType[0] == '*' {
 						funcRType = funcRType[1:len(funcRType)]
 					}
-					tType+=funcRType
-				}else{
-					if field.Type().IsEmbed(){
-						tType+="*"
+					tType += funcRType
+				} else {
+					if field.Type().IsEmbed() {
+						tType += "*"
 					}
 					funcRType := m.RPCFieldType(field)
-					if funcRType[0]=='*'{
+					if funcRType[0] == '*' {
 						funcRType = funcRType[1:len(funcRType)]
 					}
-					tType+=funcRType
+					tType += funcRType
 				}
-				inType=append(inType,Fields{Name:name,Type:tType})
+				if strings.ToLower(name) == "id" {
+					returnType = append(returnType,Fields{Name:name,Type:"Id.Value"})
+				}else{
+					returnType = append(returnType,Fields{Name:name,Type:name})
+				}
+				inType = append(inType, Fields{Name: name, Type: tType})
 			}
-			varQuery = append(varQuery, Query{FieldName: fieldName, InType: inType, FirstReturnArgType: firstReturnArgType, ReturnFunc: returnFunc})
+			inputName:= rpc.Input().Name().UpperCamelCase().String()
+			varQuery = append(varQuery, Query{InputName:inputName,ReturnType: returnType, FieldName: fieldName, InType: inType, FirstReturnArgType: firstReturnArgType, ReturnFunc: returnFunc})
 		} else if option.GetQuery() == "" {
 			fieldName := option.GetMutation()
 			inputType := "*" + rpc.Name().UpperCamelCase().String() + "Input"
@@ -668,23 +678,23 @@ func (m *jaalModule) RPCFieldType(field pgs.Field) string {
 		return m.scalarMap(scalarType)
 	}
 }
-func (m *jaalModule)checkImportedField(service pgs.Service,field pgs.Field)string{
+func (m *jaalModule) checkImportedField(service pgs.Service, field pgs.Field) string {
 
-	if service.Package().ProtoName().String() != field.Package().ProtoName().String(){
-		goPkg:= m.GetGoPackage(field.File()) //.Type().Embed().File()
-		return goPkg+ "."
+	if service.Package().ProtoName().String() != field.Package().ProtoName().String() {
+		goPkg := m.GetGoPackage(field.File()) //.Type().Embed().File()
+		return goPkg + "."
 	}
 	return ""
 }
 func (m *jaalModule) ServiceStructInput(service pgs.Service) (string, error) {
 	var inputServiceStruct []InputServiceStruct
 	for _, rpc := range service.Methods() {
-		flag,option,err := m.GetOption(rpc)
-		if err!=nil{
-			m.Log("Error",err)
+		flag, option, err := m.GetOption(rpc)
+		if err != nil {
+			m.Log("Error", err)
 			os.Exit(0)
 		}
-		if flag == false{
+		if flag == false {
 			continue
 		}
 		if option.GetMutation() == "" {
@@ -693,34 +703,34 @@ func (m *jaalModule) ServiceStructInput(service pgs.Service) (string, error) {
 		tInputServiceSTruct := InputServiceStruct{RpcName: rpc.Name().UpperCamelCase().String()}
 		for _, ipField := range rpc.Input().Fields() {
 			name := ipField.Name().UpperCamelCase().String()
-			ttype:= m.RPCFieldType(ipField)
+			ttype := m.RPCFieldType(ipField)
 
-			if ipField.Type().IsRepeated(){
+			if ipField.Type().IsRepeated() {
 				ttype = "[]"
 				tObj := ipField.Type().Element()
-				if tObj.IsEmbed(){
-					ttype+="*"
+				if tObj.IsEmbed() {
+					ttype += "*"
 				}
-				if tObj.IsEmbed() && tObj.Embed().File().Descriptor().Options!=nil && tObj.Embed().File().Descriptor().Options.GoPackage!=nil{
+				if tObj.IsEmbed() && tObj.Embed().File().Descriptor().Options != nil && tObj.Embed().File().Descriptor().Options.GoPackage != nil {
 					if service.Package().ProtoName().String() != tObj.Embed().Package().ProtoName().String() {
-						ttype+= m.GetGoPackage(tObj.Embed().File())
+						ttype += m.GetGoPackage(tObj.Embed().File())
 						ttype += "."
 					}
 				}
-				ttype+= m.fieldElementType(tObj)
-			}else{
-				go_pkg:=""
+				ttype += m.fieldElementType(tObj)
+			} else {
+				go_pkg := ""
 				if ipField.Type().IsEmbed() && ipField.Type().Embed().File().Descriptor().Options != nil && ipField.Type().Embed().File().Descriptor().Options.GoPackage != nil {
 					if service.Package().ProtoName().String() != ipField.Type().Embed().Package().ProtoName().String() {
 
-						go_pkg = m.GetGoPackage(ipField.Type().Embed().File())+"."
+						go_pkg = m.GetGoPackage(ipField.Type().Embed().File()) + "."
 					}
 				}
 
-				if ttype[0]=='*'{
-					ttype= "*"+ go_pkg+ttype[1:len(ttype)]
-				}else{
-					ttype =  go_pkg+ttype
+				if ttype[0] == '*' {
+					ttype = "*" + go_pkg + ttype[1:len(ttype)]
+				} else {
+					ttype = go_pkg + ttype
 				}
 			}
 
@@ -743,11 +753,11 @@ type PayloadServiceStruct struct {
 	ReturnType string
 }
 
-func (m *jaalModule)checkImported(service pgs.Service,message pgs.Message)string{
+func (m *jaalModule) checkImported(service pgs.Service, message pgs.Message) string {
 
-	if service.Package().ProtoName().String() != message.Package().ProtoName().String(){
-		goPkg:= m.GetGoPackage(message.File()) //.Type().Embed().File()
-		return goPkg+ "."
+	if service.Package().ProtoName().String() != message.Package().ProtoName().String() {
+		goPkg := m.GetGoPackage(message.File()) //.Type().Embed().File()
+		return goPkg + "."
 	}
 	return ""
 }
@@ -755,19 +765,19 @@ func (m *jaalModule)checkImported(service pgs.Service,message pgs.Message)string
 func (m *jaalModule) ServiceStructPayload(service pgs.Service) (string, error) {
 	var payloadService []PayloadServiceStruct
 	for _, rpc := range service.Methods() {
-		flag,option,err := m.GetOption(rpc)
-		if err!=nil{
-			m.Log("Error",err)
+		flag, option, err := m.GetOption(rpc)
+		if err != nil {
+			m.Log("Error", err)
 			os.Exit(0)
 		}
-		if flag == false{
+		if flag == false {
 			continue
 		}
 		if option.GetMutation() == "" {
 			continue
 		}
-		returnType:= "*"+ m.checkImported(service,rpc.Output())+ rpc.Output().Name().UpperCamelCase().String()
-		payloadService = append(payloadService, PayloadServiceStruct{Name: rpc.Name().UpperCamelCase().String(), ReturnType:  returnType})
+		returnType := "*" + m.checkImported(service, rpc.Output()) + rpc.Output().Name().UpperCamelCase().String()
+		payloadService = append(payloadService, PayloadServiceStruct{Name: rpc.Name().UpperCamelCase().String(), ReturnType: returnType})
 	}
 	tmp := getServiceStructPayloadTemplate()
 	buf := &bytes.Buffer{}
@@ -780,12 +790,12 @@ func (m *jaalModule) ServiceStructPayload(service pgs.Service) (string, error) {
 }
 func (m *jaalModule) getPossibleReqObjects(service pgs.Service, PossibleReqObjects map[string]bool) error {
 	for _, rpc := range service.Methods() {
-		flag,option,err := m.GetOption(rpc)
-		if err!=nil{
-			m.Log("Error",err)
+		flag, option, err := m.GetOption(rpc)
+		if err != nil {
+			m.Log("Error", err)
 			os.Exit(0)
 		}
-		if flag == false{
+		if flag == false {
 			continue
 		}
 		if option.GetMutation() == "" {
@@ -822,7 +832,7 @@ func (m *jaalModule) GetGoPackage(target pgs.File) string {
 func (m *jaalModule) GetImports(target pgs.File) map[string]string {
 	imports := make(map[string]string)
 	for _, importFile := range target.Imports() {
-		if importFile.Descriptor().Options!=nil && importFile.Descriptor().Options.GoPackage!=nil{
+		if importFile.Descriptor().Options != nil && importFile.Descriptor().Options.GoPackage != nil {
 			key := *importFile.Descriptor().Options.GoPackage
 			key = strings.Split(key, ";")[0]
 			imports[key] = strings.Split(key, "/")[len(strings.Split(key, "/"))-1]
@@ -834,12 +844,12 @@ func (m *jaalModule) GetImports(target pgs.File) map[string]string {
 func (m *jaalModule) ServiceStructInputFunc(service pgs.Service, initFunctionsName map[string]bool) (string, error) {
 	var inputServiceStructFunc []InputClass
 	for _, rpc := range service.Methods() {
-		flag,option,err := m.GetOption(rpc)
-		if err!=nil{
-			m.Log("Error",err)
+		flag, option, err := m.GetOption(rpc)
+		if err != nil {
+			m.Log("Error", err)
 			os.Exit(0)
 		}
-		if flag == false{
+		if flag == false {
 			continue
 		}
 		if option.GetMutation() == "" {
@@ -866,15 +876,15 @@ func (m *jaalModule) ServiceStructInputFunc(service pgs.Service, initFunctionsNa
 			if funcPara[0] == '*' {
 				funcPara = funcPara[1:len(funcPara)]
 			}
-			go_pkg:=""
+			go_pkg := ""
 			if ipField.Type().IsEmbed() && ipField.Type().Embed().File().Descriptor().Options != nil && ipField.Type().Embed().File().Descriptor().Options.GoPackage != nil {
 				if service.Package().ProtoName().String() != ipField.Type().Embed().Package().ProtoName().String() {
 
-					go_pkg = m.GetGoPackage(ipField.Type().Embed().File())+"."
+					go_pkg = m.GetGoPackage(ipField.Type().Embed().File()) + "."
 				}
 			}
 			//m.Log(go_pkg)
-			funcPara="*"+go_pkg+funcPara
+			funcPara = "*" + go_pkg + funcPara
 			field = append(field, MsgFields{TargetName: tname, FieldName: fName, FuncPara: funcPara, TargetVal: tval})
 		}
 		initFunctionsName["RegisterInput"+rpc.Name().UpperCamelCase().String()+"Input"] = true
@@ -893,12 +903,12 @@ func (m *jaalModule) ServiceStructInputFunc(service pgs.Service, initFunctionsNa
 func (m *jaalModule) ServiceStructPayloadFunc(service pgs.Service, initFunctionsName map[string]bool) (string, error) {
 	var payloadService []PayloadServiceStruct
 	for _, rpc := range service.Methods() {
-		flag,option,err := m.GetOption(rpc)
-		if err!=nil{
-			m.Log("Error",err)
+		flag, option, err := m.GetOption(rpc)
+		if err != nil {
+			m.Log("Error", err)
 			os.Exit(0)
 		}
-		if flag == false{
+		if flag == false {
 			continue
 		}
 		if option.GetMutation() == "" {
@@ -908,8 +918,8 @@ func (m *jaalModule) ServiceStructPayloadFunc(service pgs.Service, initFunctions
 			continue
 		}
 		initFunctionsName["RegisterPayload"+rpc.Name().UpperCamelCase().String()+"Payload"] = true
-		returnType:= "*"+ m.checkImported(service,rpc.Output())+ rpc.Output().Name().UpperCamelCase().String() // "*" + rpc.Output().Name().UpperCamelCase().String()
-		payloadService = append(payloadService, PayloadServiceStruct{Name: rpc.Name().UpperCamelCase().String(), ReturnType:returnType })
+		returnType := "*" + m.checkImported(service, rpc.Output()) + rpc.Output().Name().UpperCamelCase().String() // "*" + rpc.Output().Name().UpperCamelCase().String()
+		payloadService = append(payloadService, PayloadServiceStruct{Name: rpc.Name().UpperCamelCase().String(), ReturnType: returnType})
 	}
 	tmp := getServiceStructPayloadFuncTemplate()
 	buf := &bytes.Buffer{}
