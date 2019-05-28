@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package graphql;
+
+
+import "google/protobuf/descriptor.proto";
+
+option go_package="go.appointy.com/jaal/schema";
+
+extend google.protobuf.MethodOptions {
+    MethodOptions schema = 91111;
+}
+
+message MethodOptions {
+    oneof type {
+        string query = 1;
+        string mutation = 2;
+    }
+}
