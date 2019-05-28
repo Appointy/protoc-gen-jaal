@@ -137,6 +137,22 @@ type Oneof struct {
 	TargetName                  string
 }
 
+func (m *jaalModule)GetSkipOption(message pgs.Message) (bool,error){
+	opt := message.Descriptor().GetOptions()
+	x, err := proto.GetExtension(opt, pbt.E_Skip)
+	if opt == nil {
+		return false, nil
+	}
+	if err != nil {
+		if err == proto.ErrMissingExtension {
+			return false, nil
+		}
+
+		return false, err
+
+	}
+	return *x.((*bool)), nil
+}
 func (m *jaalModule) OneofInputType(inputData pgs.Message, imports map[string]string, initFunctionsName map[string]bool) (string, error) {
 	var oneOfArr []Oneof
 	for _, oneof := range inputData.OneOfs() {
@@ -234,7 +250,11 @@ func (m *jaalModule) UnionStruct(inputData pgs.Message, imports map[string]strin
 }
 
 func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string, PossibleReqObjects map[string]bool, initFunctionsName map[string]bool) (string, error) {
-
+	if skip,err:=m.GetSkipOption(inputData);err!=nil{
+		return "",err
+	}else if skip{
+		return "",nil
+	}
 	msg := InputClass{Name: inputData.Name().UpperCamelCase().String()}
 	if PossibleReqObjects[inputData.Name().String()] {
 		msg.InputObjName = m.InputAppend(inputData.Name().UpperCamelCase().String())
@@ -367,7 +387,11 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 }
 
 func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]string, initFunctionsName map[string]bool) (string, error) {
-
+	if skip,err:=m.GetSkipOption(payloadData);err!=nil{
+		return "",err
+	}else if skip{
+		return "",nil
+	}
 	msg := Payload{Name: payloadData.Name().UpperCamelCase().String()}
 	initFunctionsName["RegisterPayload"+msg.Name] = true
 	for _, oneof := range payloadData.OneOfs() {
