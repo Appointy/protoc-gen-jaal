@@ -423,7 +423,7 @@ func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]str
 			}
 			ttype:= m.fieldElementType(tObj)
 			msgArg+=ttype
-			tVal += "in."+ttype
+			tVal += "in."+fields.Name().UpperCamelCase().String()
 		} else if fields.Type().IsMap() {
 
 			msgArg += "map["
