@@ -32,9 +32,18 @@ type UnionObject struct {
 	UnionFields []string
 }
 
+type InputMap struct {
+	FieldName string
+	TargetName string
+	TargetVal string
+	Key       string
+	Value     string
+}
+
 type InputClass struct {
 	Name         string
 	InputObjName string
+	Maps         []InputMap
 	Fields       []MsgFields
 }
 
@@ -116,10 +125,14 @@ type UnionObjectPayload struct {
 	SwitchName string
 	Fields     []OneOfFields
 }
-
+type PayloadMap struct {
+	FieldName string
+	TargetVal string
+}
 type Payload struct {
 	Name         string
 	UnionObjects []UnionObjectPayload
+	Maps         []PayloadMap
 	Fields       []PayloadFields
 }
 
@@ -295,7 +308,7 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 	// returns generated template(Input) in for a message type
 
 	if skip, err := m.GetSkipOption(inputData); err != nil {
-
+		// checks skip flag
 		return "", err
 
 	} else if skip {
@@ -316,6 +329,8 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 	}
 
 	initFunctionsName["RegisterInput"+msg.Name] = true
+
+	var maps []InputMap
 
 	for _, oneof := range inputData.OneOfs() {
 
@@ -339,6 +354,8 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 		flag := true
 		flag2 := true
 		flag3 := true
+		fieldName := fields.Name().LowerCamelCase().String()
+		targetName := fields.Name().UpperCamelCase().String()
 
 		if fields.Type().IsRepeated() {
 
@@ -391,20 +408,8 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 
 		} else if fields.Type().IsMap() {
 
-			msgArg += "map["
-			msgArg += m.fieldElementType(fields.Type().Key())
-			msgArg += "]"
-
-			if fields.Type().Element().IsEmbed() {
-
-				msgArg += ("*" + m.fieldElementType(fields.Type().Element()))
-
-			} else {
-
-				msgArg += m.fieldElementType(fields.Type().Element())
-
-			}
-
+			maps=append(maps,InputMap{FieldName:fieldName,TargetVal:"*source",TargetName:targetName,Key:m.fieldElementType(fields.Type().Key()),Value:m.fieldElementType(fields.Type().Element())})
+			continue
 		} else if fields.Descriptor().GetType().String() == "TYPE_MESSAGE" {
 
 			if fields.Type().IsEmbed() && fields.Type().Embed().File().Descriptor().Options != nil && fields.Type().Embed().File().Descriptor().Options.GoPackage != nil {
@@ -446,19 +451,20 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 
 		}
 
-		targetName := fields.Name().UpperCamelCase().String()
-		fieldName := fields.Name().LowerCamelCase().String()
-		if strings.HasSuffix(msgArg, "timestamp.Timestamp"){
+		if strings.HasSuffix(msgArg, "timestamp.Timestamp") {
 			// handles special case of timestamp
-			msgArg=msgArg[:len(msgArg)-19]
-			msgArg+="schemabuilder.Timestamp"
+			//todo repeated case is not handled
 
-			tVal = "(*timestamp.Timestamp)("+tVal+")"
+			msgArg = msgArg[:len(msgArg)-19]
+			msgArg += "schemabuilder.Timestamp"
+
+			tVal = "(*timestamp.Timestamp)(" + tVal + ")"
 		}
 		msg.Fields = append(msg.Fields, MsgFields{TargetName: targetName, FieldName: fieldName, FuncPara: msgArg, TargetVal: tVal})
 
 	}
-
+	// adds all maps
+	msg.Maps=maps
 	tmp := getInputTemplate()
 	buf := &bytes.Buffer{}
 
@@ -475,7 +481,7 @@ func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]str
 	// returns generated template(Payload) in for a message type
 
 	if skip, err := m.GetSkipOption(payloadData); err != nil {
-
+		// checks skip flag
 		return "", err
 
 	} else if skip {
@@ -485,7 +491,7 @@ func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]str
 
 	msg := Payload{Name: payloadData.Name().UpperCamelCase().String()}
 	initFunctionsName["RegisterPayload"+msg.Name] = true
-
+	var maps []PayloadMap
 	for _, oneof := range payloadData.OneOfs() {
 
 		var oneofFields []OneOfFields
@@ -504,11 +510,11 @@ func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]str
 		msg.UnionObjects = append(msg.UnionObjects, UnionObjectPayload{FieldName: fieldName, SwitchName: switchName, FuncReturn: funcpara, Fields: oneofFields})
 
 	}
-
 	for _, fields := range payloadData.NonOneOfFields() {
 
 		msgArg := ""
 		tVal := ""
+		fieldName := fields.Name().LowerCamelCase().String()
 
 		if fields.Type().IsRepeated() {
 
@@ -551,23 +557,12 @@ func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]str
 			tVal += "in." + fields.Name().UpperCamelCase().String()
 
 		} else if fields.Type().IsMap() {
-
-			msgArg += "map["
-			msgArg += m.fieldElementType(fields.Type().Key())
-			msgArg += "]"
-
-			if fields.Type().Element().IsEmbed() {
-
-				msgArg += ("*" + m.fieldElementType(fields.Type().Element()))
-
-			} else {
-
-				msgArg += m.fieldElementType(fields.Type().Element())
-
-			}
+			//TODO : Repeated case not handled
 
 			tVal += "in."
 			tVal += fields.Name().UpperCamelCase().String()
+			maps = append(maps, PayloadMap{FieldName: fieldName, TargetVal: tVal})
+			continue
 
 		} else if fields.Descriptor().GetType().String() == "TYPE_MESSAGE" {
 
@@ -603,18 +598,21 @@ func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]str
 			tVal += fields.Name().UpperCamelCase().String()
 
 		}
-		if strings.HasSuffix(msgArg, "timestamp.Timestamp"){
+		if strings.HasSuffix(msgArg, "timestamp.Timestamp") {
 			// handles special case of timestamp
+			//todo repeated case is not handled
+			msgArg = msgArg[:len(msgArg)-19]
+			msgArg += "schemabuilder.Timestamp"
 
-			msgArg=msgArg[:len(msgArg)-19]
-			msgArg+="schemabuilder.Timestamp"
-
-			tVal = "(*timestamp.Timestamp)("+tVal+")"
+			tVal = "(*timestamp.Timestamp)(" + tVal + ")"
 		}
-		fieldName := fields.Name().LowerCamelCase().String()
+
 		msg.Fields = append(msg.Fields, PayloadFields{FieldName: fieldName, FuncPara: msgArg, TargetVal: tVal})
 
 	}
+
+	// adds all maps
+	msg.Maps = maps
 
 	tmp := getPayloadTemplate()
 	buf := &bytes.Buffer{}

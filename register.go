@@ -20,6 +20,8 @@ func (m *jaalModule) generateFileData(target pgs.File) (string, error) {
 		buf.WriteString("import \"" + key + "\";\n")
 	}
 	buf.WriteString("import \"context\";")
+	buf.WriteString("import \"encoding/json\";")
+	buf.WriteString("import \"encoding/base64\";")
 	buf.WriteString("import \"go.appointy.com/jaal/gtypes\";")
 	buf.WriteString("import \"go.appointy.com/jaal/schemabuilder\";")
 

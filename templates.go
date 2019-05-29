@@ -50,6 +50,23 @@ func getInputTemplate() *template.Template {
 func RegisterInput{{.Name}}(schema *schemabuilder.Schema) {
 	input := schema.InputObject("{{.InputObjName}}", {{.Name}}{})
 	{{$name:=.Name}}
+	{{range .Maps}}
+		input.FieldFunc("{{.FieldName}}", func(target *{{$name}}, source *schemabuilder.Map) error {
+			v := string({{.TargetVal}})
+	
+			decodedValue, err := base64.StdEncoding.DecodeString(v)
+			if err != nil {
+				return err
+			}
+	
+			data := make(map[{{.Key}}]*{{.Value}})
+			if err := json.Unmarshal(decodedValue, &data); err != nil {
+				return err
+			}
+	
+			target.{{.TargetName}} = data
+			return nil
+		}){{end}}
 	{{range .Fields}}
 	input.FieldFunc("{{.FieldName}}", func(target *{{$name}}, source {{.FuncPara}}) {
 		target.{{.TargetName}} = {{.TargetVal}}
@@ -70,6 +87,16 @@ func getPayloadTemplate() *template.Template {
 	tmpl := `
 func RegisterPayload{{.Name}}(schema *schemabuilder.Schema) {
 	payload := schema.Object("{{.Name}}", {{.Name}}{}){{$name:=.Name}}
+	{{range .Maps}}
+		payload.FieldFunc("{{.FieldName}}", func(ctx context.Context, in *{{$name}}) (*schemabuilder.Map, error) {
+			data, err := json.Marshal({{.TargetVal}})
+			if err != nil {
+				return nil, err
+			}
+	
+			encodedValue := base64.StdEncoding.EncodeToString(data)
+			return (*schemabuilder.Map)(&encodedValue), nil
+		}){{end}}
 	{{range .UnionObjects}}
 	payload.FieldFunc("{{.FieldName}}", func(ctx context.Context, in *{{$name}}) {{.FuncReturn}} {
 		switch v := in{{"."}}{{.SwitchName}}{{"."}}(type) {
