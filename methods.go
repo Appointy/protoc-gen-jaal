@@ -448,6 +448,13 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 
 		targetName := fields.Name().UpperCamelCase().String()
 		fieldName := fields.Name().LowerCamelCase().String()
+		if strings.HasSuffix(msgArg, "timestamp.Timestamp"){
+			// handles special case of timestamp
+			msgArg=msgArg[:len(msgArg)-19]
+			msgArg+="schemabuilder.Timestamp"
+
+			tVal = "(*timestamp.Timestamp)("+tVal+")"
+		}
 		msg.Fields = append(msg.Fields, MsgFields{TargetName: targetName, FieldName: fieldName, FuncPara: msgArg, TargetVal: tVal})
 
 	}
@@ -596,7 +603,14 @@ func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]str
 			tVal += fields.Name().UpperCamelCase().String()
 
 		}
+		if strings.HasSuffix(msgArg, "timestamp.Timestamp"){
+			// handles special case of timestamp
 
+			msgArg=msgArg[:len(msgArg)-19]
+			msgArg+="schemabuilder.Timestamp"
+
+			tVal = "(*timestamp.Timestamp)("+tVal+")"
+		}
 		fieldName := fields.Name().LowerCamelCase().String()
 		msg.Fields = append(msg.Fields, PayloadFields{FieldName: fieldName, FuncPara: msgArg, TargetVal: tVal})
 
