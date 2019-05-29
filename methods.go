@@ -33,11 +33,11 @@ type UnionObject struct {
 }
 
 type InputMap struct {
-	FieldName string
+	FieldName  string
 	TargetName string
-	TargetVal string
-	Key       string
-	Value     string
+	TargetVal  string
+	Key        string
+	Value      string
 }
 
 type InputClass struct {
@@ -407,8 +407,20 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 			msgArg += ttype
 
 		} else if fields.Type().IsMap() {
+			// TODO : Repeated case not handled
 
-			maps=append(maps,InputMap{FieldName:fieldName,TargetVal:"*source",TargetName:targetName,Key:m.fieldElementType(fields.Type().Key()),Value:m.fieldElementType(fields.Type().Element())})
+			goPkg := ""
+			if fields.Type().Element().IsEmbed() && fields.Type().Element().Embed().File().Descriptor().Options != nil && fields.Type().Element().Embed().File().Descriptor().Options.GoPackage != nil {
+
+				if inputData.Package().ProtoName().String() != fields.Type().Element().Embed().Package().ProtoName().String() {
+
+					goPkg = m.GetGoPackage(fields.Type().Element().Embed().File())
+					goPkg += "."
+				}
+			}
+
+			value := goPkg + m.fieldElementType(fields.Type().Element())
+			maps = append(maps, InputMap{FieldName: fieldName, TargetVal: "*source", TargetName: targetName, Key: m.fieldElementType(fields.Type().Key()), Value: value})
 			continue
 		} else if fields.Descriptor().GetType().String() == "TYPE_MESSAGE" {
 
@@ -464,7 +476,7 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 
 	}
 	// adds all maps
-	msg.Maps=maps
+	msg.Maps = maps
 	tmp := getInputTemplate()
 	buf := &bytes.Buffer{}
 
