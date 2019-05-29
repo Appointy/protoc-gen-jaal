@@ -616,7 +616,7 @@ func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]str
 			msgArg = msgArg[:len(msgArg)-19]
 			msgArg += "schemabuilder.Timestamp"
 
-			tVal = "(*timestamp.Timestamp)(" + tVal + ")"
+			tVal = "(*schemabuilder.Timestamp)(" + tVal + ")"
 		}
 
 		msg.Fields = append(msg.Fields, PayloadFields{FieldName: fieldName, FuncPara: msgArg, TargetVal: tVal})
@@ -737,7 +737,7 @@ func (m *jaalModule) ServiceInput(service pgs.Service) (string, error) {
 		}
 
 		if flag == false {
-
+			m.Log("contine\n")
 			continue
 
 		}
