@@ -94,8 +94,7 @@ func RegisterPayload{{.Name}}(schema *schemabuilder.Schema) {
 				return nil, err
 			}
 	
-			encodedValue := base64.StdEncoding.EncodeToString(data)
-			return &schemabuilder.Map{Value:encodedValue}, nil
+			return &schemabuilder.Map{Value:string(data)}, nil
 		}){{end}}
 	{{range .UnionObjects}}
 	payload.FieldFunc("{{.FieldName}}", func(ctx context.Context, in *{{$name}}) {{.FuncReturn}} {
