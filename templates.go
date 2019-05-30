@@ -144,10 +144,19 @@ func Register{{.Name}}Operations(schema *schemabuilder.Schema, client {{.Name}}C
 			if err{{.Name}} := json.Unmarshal(decodedValue{{.Name}}, &{{.NewVarName}}Map); err{{.Name}} != nil {
 				return nil,err{{.Name}}
 			}{{end}}
-			return client{{"."}}{{.ReturnFunc}}(ctx, &{{.InputName}}{
+			request := &{{.InputName}}{
 			{{range .ReturnType}}
 			{{.Name}}: {{.Type}},{{end}}
-			})
+			}
+			{{range .Oneofs}}
+			{{$oneOfNameQ:= .Name}}
+				{{range .Fields}}
+					if args.{{.Name}} != nil{
+						request.{{$oneOfNameQ}} = args.{{.Name}}
+					}
+				{{end}}
+			{{end}}
+			return client{{"."}}{{.ReturnFunc}}(ctx, request)
 		})
 	{{end}}
 	{{range .Mutations}}
@@ -156,9 +165,14 @@ func Register{{.Name}}Operations(schema *schemabuilder.Schema, client {{.Name}}C
 		}) ({{.FirstReturnArgType}}, error) {
 			request := {{.RequestType}}{
 				{{range .RequestFields}}
-				{{.}}: args{{"."}}Input{{"."}}{{.}},
-				{{end}}
+				{{.}}: args{{"."}}Input{{"."}}{{.}},{{end}}
 			}
+			{{range .OneOfs}}
+			{{$oneOfName:= .Name}}
+				{{range .Fields}}
+				if args.Input.{{.Name}} != nil{
+					request.{{$oneOfName}} = args.Input.{{.Name}}
+				}{{end}}{{end}}
 			response, err := client{{"."}}{{.ResponseType}}(ctx, request)
 			return {{.ReturnType}}{
 				Payload:          response,
