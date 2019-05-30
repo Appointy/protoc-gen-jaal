@@ -419,7 +419,12 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 				}
 			}
 
-			value := goPkg + m.fieldElementType(fields.Type().Element())
+			asterik := ""
+			if fields.Type().Element().IsEmbed() {
+				asterik = "*"
+			}
+
+			value := asterik + goPkg + m.fieldElementType(fields.Type().Element())
 			maps = append(maps, InputMap{FieldName: fieldName, TargetVal: "*source", TargetName: targetName, Key: m.fieldElementType(fields.Type().Key()), Value: value})
 			continue
 		} else if fields.Descriptor().GetType().String() == "TYPE_MESSAGE" {

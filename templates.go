@@ -59,7 +59,7 @@ func RegisterInput{{.Name}}(schema *schemabuilder.Schema) {
 				return err
 			}
 	
-			data := make(map[{{.Key}}]*{{.Value}})
+			data := make(map[{{.Key}}]{{.Value}})
 			if err := json.Unmarshal(decodedValue, &data); err != nil {
 				return err
 			}
