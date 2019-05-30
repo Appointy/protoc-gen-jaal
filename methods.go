@@ -829,14 +829,14 @@ func (m *jaalModule) ServiceInput(service pgs.Service) (string, error) {
 				}
 
 				if strings.ToLower(name) == "id" {
+					returnType = append(returnType, Fields{Name: name, Type: "args.Id.Value"})
 
-					returnType = append(returnType, Fields{Name: name, Type: "Id.Value"})
-
-				} else {
-
-					returnType = append(returnType, Fields{Name: name, Type: name})
+				} else if tType == "*timestamp.Timestamp"{
+					tType = "*schemabuilder.Timestamp"
+					returnType = append(returnType, Fields{Name: name, Type: "(*timestamp.Timestamp)"+"(args."+name+")"})
+				}else{
+					returnType = append(returnType, Fields{Name: name, Type: "args."+name})
 				}
-
 				inType = append(inType, Fields{Name: name, Type: tType})
 			}
 

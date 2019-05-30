@@ -137,7 +137,7 @@ func Register{{.Name}}Operations(schema *schemabuilder.Schema, client {{.Name}}C
 		}) ({{.FirstReturnArgType}}, error) {
 			return client{{"."}}{{.ReturnFunc}}(ctx, &{{.InputName}}{
 			{{range .ReturnType}}
-			{{.Name}}: args{{"."}}{{.Type}},{{end}}
+			{{.Name}}: {{.Type}},{{end}}
 			})
 		})
 	{{end}}
