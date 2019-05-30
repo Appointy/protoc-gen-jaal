@@ -1229,12 +1229,6 @@ func (m *jaalModule) ServiceStructInputFunc(service pgs.Service, initFunctionsNa
 
 		}
 
-		if option.GetMutation() == "" {
-
-			continue
-
-		}
-
 		var field []MsgFields
 
 		for _, ipField := range rpc.Input().Fields() {
@@ -1249,36 +1243,63 @@ func (m *jaalModule) ServiceStructInputFunc(service pgs.Service, initFunctionsNa
 
 			fName := ipField.Name().LowerCamelCase().String()
 			tval := ""
+			funcPara := ""
 
-			if ipField.Descriptor().GetType().String() == "TYPE_MESSAGE" {
 
-				tval = "source"
+			if ipField.Type().IsRepeated(){
+				funcPara = "[]"
+				tObj := ipField.Type().Element()
 
-			} else {
+				if tObj.IsEmbed() {
 
-				tval = "*source"
+					funcPara += "*"
 
-			}
-
-			funcPara := m.RPCFieldType(ipField)
-
-			if funcPara[0] == '*' {
-
-				funcPara = funcPara[1:len(funcPara)]
-
-			}
-
-			go_pkg := ""
-
-			if ipField.Type().IsEmbed() && ipField.Type().Embed().File().Descriptor().Options != nil && ipField.Type().Embed().File().Descriptor().Options.GoPackage != nil {
-
-				if service.Package().ProtoName().String() != ipField.Type().Embed().Package().ProtoName().String() {
-
-					go_pkg = m.GetGoPackage(ipField.Type().Embed().File()) + "."
 				}
+
+				if tObj.IsEmbed() && tObj.Embed().File().Descriptor().Options != nil && tObj.Embed().File().Descriptor().Options.GoPackage != nil {
+
+					if service.Package().ProtoName().String() != tObj.Embed().Package().ProtoName().String() {
+
+						funcPara += m.GetGoPackage(tObj.Embed().File())
+						funcPara += "."
+
+					}
+
+				}
+				tval = "source"
+				funcPara += m.fieldElementType(tObj)
+			}else{
+				if ipField.Descriptor().GetType().String() == "TYPE_MESSAGE" {
+
+					tval = "source"
+
+				} else {
+
+					tval = "*source"
+
+				}
+
+				funcPara = m.RPCFieldType(ipField)
+
+				if funcPara[0] == '*' {
+
+					funcPara = funcPara[1:len(funcPara)]
+
+				}
+
+				go_pkg := ""
+
+				if ipField.Type().IsEmbed() && ipField.Type().Embed().File().Descriptor().Options != nil && ipField.Type().Embed().File().Descriptor().Options.GoPackage != nil {
+
+					if service.Package().ProtoName().String() != ipField.Type().Embed().Package().ProtoName().String() {
+
+						go_pkg = m.GetGoPackage(ipField.Type().Embed().File()) + "."
+					}
+				}
+				//m.Log(go_pkg)
+				funcPara = "*" + go_pkg + funcPara
 			}
-			//m.Log(go_pkg)
-			funcPara = "*" + go_pkg + funcPara
+
 			field = append(field, MsgFields{TargetName: tname, FieldName: fName, FuncPara: funcPara, TargetVal: tval})
 		}
 
@@ -1326,11 +1347,6 @@ func (m *jaalModule) ServiceStructPayloadFunc(service pgs.Service, initFunctions
 
 		}
 
-		if option.GetMutation() == "" {
-
-			continue
-
-		}
 
 		initFunctionsName["RegisterPayload"+rpc.Name().UpperCamelCase().String()+"Payload"] = true
 		returnType := "*" + m.checkImported(service, rpc.Output()) + rpc.Output().Name().UpperCamelCase().String() // "*" + rpc.Output().Name().UpperCamelCase().String()
