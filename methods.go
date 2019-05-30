@@ -643,6 +643,13 @@ func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]str
 	return buf.String(), nil
 }
 
+type MapData struct {
+	Name       string
+	Key        string
+	Value      string
+	NewVarName string
+}
+
 type Fields struct {
 	Name string
 	Type string
@@ -655,6 +662,7 @@ type Query struct {
 	ReturnType         []Fields
 	FirstReturnArgType string
 	ReturnFunc         string
+	MapsData           []MapData
 }
 
 type Mutation struct {
@@ -745,15 +753,20 @@ func (m *jaalModule) ServiceInput(service pgs.Service) (string, error) {
 			continue
 
 		}
-
+		//todo case for no query and mutation
 		if option.GetMutation() == "" {
 
 			fieldName := option.GetQuery()
-			firstReturnArgType := "*" + rpc.Output().Name().UpperCamelCase().String()
+			firstReturnArgType := "*"
+			if rpc.Output().Package().ProtoName().String() != service.Package().ProtoName().String() {
+				firstReturnArgType += m.GetGoPackage(rpc.Output().File())
+				firstReturnArgType += "."
+			}
+			firstReturnArgType += rpc.Output().Name().UpperCamelCase().String()
 			returnFunc := rpc.Name().UpperCamelCase().String()
 			var inType []Fields
 			var returnType []Fields
-
+			var mapsData []MapData
 			for _, field := range rpc.Input().Fields() {
 
 				name := field.Name().UpperCamelCase().String()
@@ -787,6 +800,26 @@ func (m *jaalModule) ServiceInput(service pgs.Service) (string, error) {
 
 					tType += m.fieldElementType(tObj)
 
+				} else if field.Type().IsMap() {
+					tType = "*schemabuilder.Map"
+					goPkg := ""
+					if field.Type().Element().IsEmbed() && field.Type().Element().Embed().File().Descriptor().Options != nil && field.Type().Element().Embed().File().Descriptor().Options.GoPackage != nil {
+
+						if service.Package().ProtoName().String() != field.Type().Element().Embed().Package().ProtoName().String() {
+
+							goPkg = m.GetGoPackage(field.Type().Element().Embed().File())
+							goPkg += "."
+						}
+					}
+
+					asterik := ""
+					if field.Type().Element().IsEmbed() {
+						asterik = "*"
+					}
+
+					value := asterik + goPkg + m.fieldElementType(field.Type().Element())
+					mapsData = append(mapsData, MapData{Name: name, NewVarName:field.Name().LowerCamelCase().String(), Key: m.fieldElementType(field.Type().Key()), Value: value})
+					//returnType = "map returns"
 				} else if field.Type().IsEmbed() && field.Type().Embed().File().Descriptor().Options != nil && field.Type().Embed().File().Descriptor().Options.GoPackage != nil {
 
 					if service.Package().ProtoName().String() != field.Type().Embed().Package().ProtoName().String() {
@@ -835,17 +868,18 @@ func (m *jaalModule) ServiceInput(service pgs.Service) (string, error) {
 				if strings.ToLower(name) == "id" {
 					returnType = append(returnType, Fields{Name: name, Type: "args.Id.Value"})
 
-				} else if tType == "*timestamp.Timestamp"{
+				} else if tType == "*timestamp.Timestamp" {
 					tType = "*schemabuilder.Timestamp"
-					returnType = append(returnType, Fields{Name: name, Type: "(*timestamp.Timestamp)"+"(args."+name+")"})
-				}else{
-					returnType = append(returnType, Fields{Name: name, Type: "args."+name})
+					returnType = append(returnType, Fields{Name: name, Type: "(*timestamp.Timestamp)" + "(args." + name + ")"})
+				} else if field.Type().IsMap() {
+					returnType = append(returnType, Fields{Name: name, Type: field.Name().LowerCamelCase().String() + "Map"})
+				} else {
+					returnType = append(returnType, Fields{Name: name, Type: "args." + name})
 				}
 				inType = append(inType, Fields{Name: name, Type: tType})
 			}
-
 			inputName := rpc.Input().Name().UpperCamelCase().String()
-			varQuery = append(varQuery, Query{InputName: inputName, ReturnType: returnType, FieldName: fieldName, InType: inType, FirstReturnArgType: firstReturnArgType, ReturnFunc: returnFunc})
+			varQuery = append(varQuery, Query{InputName: inputName, MapsData: mapsData, ReturnType: returnType, FieldName: fieldName, InType: inType, FirstReturnArgType: firstReturnArgType, ReturnFunc: returnFunc})
 
 		} else if option.GetQuery() == "" {
 
@@ -1011,6 +1045,24 @@ func (m *jaalModule) ServiceStructInput(service pgs.Service) (string, error) {
 				}
 
 				ttype += m.fieldElementType(tObj)
+			} else if ipField.Type().IsMap() {
+				goPkg := ""
+				if ipField.Type().Element().IsEmbed() && ipField.Type().Element().Embed().File().Descriptor().Options != nil && ipField.Type().Element().Embed().File().Descriptor().Options.GoPackage != nil {
+
+					if service.Package().ProtoName().String() != ipField.Type().Element().Embed().Package().ProtoName().String() {
+
+						goPkg = m.GetGoPackage(ipField.Type().Element().Embed().File())
+						goPkg += "."
+					}
+				}
+
+				asterik := ""
+				if ipField.Type().Element().IsEmbed() {
+					asterik = "*"
+				}
+
+				value := asterik + goPkg + m.fieldElementType(ipField.Type().Element())
+				ttype = "map[" + m.fieldElementType(ipField.Type().Key()) + "]" + value
 			} else {
 
 				go_pkg := ""
@@ -1205,7 +1257,7 @@ func (m *jaalModule) ServiceStructInputFunc(service pgs.Service, initFunctionsNa
 	//returns template of service input struct registered methods for a service
 
 	var inputServiceStructFunc []InputClass
-
+	var maps []InputMap
 	for _, rpc := range service.Methods() {
 
 		flag, option, err := m.GetOption(rpc)
@@ -1245,8 +1297,7 @@ func (m *jaalModule) ServiceStructInputFunc(service pgs.Service, initFunctionsNa
 			tval := ""
 			funcPara := ""
 
-
-			if ipField.Type().IsRepeated(){
+			if ipField.Type().IsRepeated() {
 				funcPara = "[]"
 				tObj := ipField.Type().Element()
 
@@ -1268,7 +1319,28 @@ func (m *jaalModule) ServiceStructInputFunc(service pgs.Service, initFunctionsNa
 				}
 				tval = "source"
 				funcPara += m.fieldElementType(tObj)
-			}else{
+			} else if ipField.Type().IsMap() {
+				// TODO : Repeated case not handled
+
+				goPkg := ""
+				if ipField.Type().Element().IsEmbed() && ipField.Type().Element().Embed().File().Descriptor().Options != nil && ipField.Type().Element().Embed().File().Descriptor().Options.GoPackage != nil {
+
+					if service.Package().ProtoName().String() != ipField.Type().Element().Embed().Package().ProtoName().String() {
+
+						goPkg = m.GetGoPackage(ipField.Type().Element().Embed().File())
+						goPkg += "."
+					}
+				}
+
+				asterik := ""
+				if ipField.Type().Element().IsEmbed() {
+					asterik = "*"
+				}
+
+				value := asterik + goPkg + m.fieldElementType(ipField.Type().Element())
+				maps = append(maps, InputMap{FieldName: fName, TargetVal: "*source", TargetName: ipField.Name().UpperCamelCase().String(), Key: m.fieldElementType(ipField.Type().Key()), Value: value})
+				continue
+			} else {
 				if ipField.Descriptor().GetType().String() == "TYPE_MESSAGE" {
 
 					tval = "source"
@@ -1299,12 +1371,16 @@ func (m *jaalModule) ServiceStructInputFunc(service pgs.Service, initFunctionsNa
 				//m.Log(go_pkg)
 				funcPara = "*" + go_pkg + funcPara
 			}
+			if strings.HasSuffix(funcPara, "*timestamp.Timestamp") {
+				funcPara = funcPara[:len(funcPara)-19] + "schemabuilder.Timestamp"
+				tval = "(*timestamp.Timestamp)(source)"
+			}
 
 			field = append(field, MsgFields{TargetName: tname, FieldName: fName, FuncPara: funcPara, TargetVal: tval})
 		}
 
 		initFunctionsName["RegisterInput"+rpc.Name().UpperCamelCase().String()+"Input"] = true
-		inputServiceStructFunc = append(inputServiceStructFunc, InputClass{Name: rpc.Name().UpperCamelCase().String(), Fields: field})
+		inputServiceStructFunc = append(inputServiceStructFunc, InputClass{Name: rpc.Name().UpperCamelCase().String(), Fields: field, Maps: maps})
 	}
 
 	tmp := getServiceStructInputFuncTemplate()
@@ -1346,7 +1422,6 @@ func (m *jaalModule) ServiceStructPayloadFunc(service pgs.Service, initFunctions
 			continue
 
 		}
-
 
 		initFunctionsName["RegisterPayload"+rpc.Name().UpperCamelCase().String()+"Payload"] = true
 		returnType := "*" + m.checkImported(service, rpc.Output()) + rpc.Output().Name().UpperCamelCase().String() // "*" + rpc.Output().Name().UpperCamelCase().String()

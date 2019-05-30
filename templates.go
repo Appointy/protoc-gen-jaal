@@ -134,6 +134,16 @@ func Register{{.Name}}Operations(schema *schemabuilder.Schema, client {{.Name}}C
 		{{range .InType}}
 		{{.Name}} {{.Type}}{{end}}
 		}) ({{.FirstReturnArgType}}, error) {
+			{{range .MapsData}}
+			v{{.Name}} := args.{{.Name}}.Value
+			decodedValue{{.Name}}, err{{.Name}} := base64.StdEncoding.DecodeString(v{{.Name}})
+			if err{{.Name}} != nil {
+				return nil,err{{.Name}}
+			}
+			{{.NewVarName}}Map := make(map[{{.Key}}]{{.Value}})
+			if err{{.Name}} := json.Unmarshal(decodedValue{{.Name}}, &{{.NewVarName}}Map); err{{.Name}} != nil {
+				return nil,err{{.Name}}
+			}{{end}}
 			return client{{"."}}{{.ReturnFunc}}(ctx, &{{.InputName}}{
 			{{range .ReturnType}}
 			{{.Name}}: {{.Type}},{{end}}
@@ -277,6 +287,23 @@ func getServiceStructInputFuncTemplate() *template.Template {
 {{range .}}
 func RegisterInput{{.Name}}Input(schema *schemabuilder.Schema) {
 	input := schema.InputObject("{{.Name}}Input", {{.Name}}Input{}) {{$name:=.Name}}
+	{{range .Maps}}
+		input.FieldFunc("{{.FieldName}}", func(target *{{$name}}Input, source *schemabuilder.Map) error {
+			v := source.Value
+	
+			decodedValue, err := base64.StdEncoding.DecodeString(v)
+			if err != nil {
+				return err
+			}
+	
+			data := make(map[{{.Key}}]{{.Value}})
+			if err := json.Unmarshal(decodedValue, &data); err != nil {
+				return err
+			}
+	
+			target.{{.TargetName}} = data
+			return nil
+		}){{end}}
 	{{range .Fields}}
 		input.FieldFunc("{{.FieldName}}", func(target *{{$name}}Input, source {{.FuncPara}}) {
 			target{{"."}}{{.TargetName}} = {{.TargetVal}}
