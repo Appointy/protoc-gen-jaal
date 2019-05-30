@@ -742,7 +742,6 @@ func (m *jaalModule) ServiceInput(service pgs.Service) (string, error) {
 		}
 
 		if flag == false {
-			m.Log("contine\n")
 			continue
 
 		}
