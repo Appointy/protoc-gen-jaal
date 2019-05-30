@@ -52,14 +52,14 @@ func RegisterInput{{.Name}}(schema *schemabuilder.Schema) {
 	{{$name:=.Name}}
 	{{range .Maps}}
 		input.FieldFunc("{{.FieldName}}", func(target *{{$name}}, source *schemabuilder.Map) error {
-			v := string({{.TargetVal}})
+			v := source.Value
 	
 			decodedValue, err := base64.StdEncoding.DecodeString(v)
 			if err != nil {
 				return err
 			}
 	
-			data := make(map[{{.Key}}]*{{.Value}})
+			data := make(map[{{.Key}}]{{.Value}})
 			if err := json.Unmarshal(decodedValue, &data); err != nil {
 				return err
 			}
@@ -95,7 +95,7 @@ func RegisterPayload{{.Name}}(schema *schemabuilder.Schema) {
 			}
 	
 			encodedValue := base64.StdEncoding.EncodeToString(data)
-			return (*schemabuilder.Map)(&encodedValue), nil
+			return &schemabuilder.Map{Value:encodedValue}, nil
 		}){{end}}
 	{{range .UnionObjects}}
 	payload.FieldFunc("{{.FieldName}}", func(ctx context.Context, in *{{$name}}) {{.FuncReturn}} {
