@@ -1353,9 +1353,9 @@ func (m *jaalModule) ServiceStructInputFunc(service pgs.Service, initFunctionsNa
 	//returns template of service input struct registered methods for a service
 
 	var inputServiceStructFunc []InputClass
-	var maps []InputMap
-	for _, rpc := range service.Methods() {
 
+	for _, rpc := range service.Methods() {
+		var maps []InputMap
 		flag, option, err := m.GetOption(rpc)
 
 		if err != nil {
@@ -1428,7 +1428,6 @@ func (m *jaalModule) ServiceStructInputFunc(service pgs.Service, initFunctionsNa
 				funcPara += m.fieldElementType(tObj)
 			} else if ipField.Type().IsMap() {
 				// TODO : Repeated case not handled
-
 				goPkg := ""
 				if ipField.Type().Element().IsEmbed() && ipField.Type().Element().Embed().File().Descriptor().Options != nil && ipField.Type().Element().Embed().File().Descriptor().Options.GoPackage != nil {
 

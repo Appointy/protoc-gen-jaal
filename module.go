@@ -25,7 +25,6 @@ func (m *jaalModule) CheckSkipFile(target pgs.File) (bool, error) {
 	if opt != nil {
 		x, err := proto.GetExtension(opt, pbt.E_FileSkip)
 		if err != nil && proto.ErrMissingExtension != err {
-			fmt.Println("Error", err)
 			return false, err
 		}
 
