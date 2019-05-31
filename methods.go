@@ -130,10 +130,11 @@ type PayloadMap struct {
 	TargetVal string
 }
 type Payload struct {
-	Name         string
-	UnionObjects []UnionObjectPayload
-	Maps         []PayloadMap
-	Fields       []PayloadFields
+	Name           string
+	PayloadObjName string
+	UnionObjects   []UnionObjectPayload
+	Maps           []PayloadMap
+	Fields         []PayloadFields
 }
 
 func (m *jaalModule) EnumType(enumData pgs.Enum, imports map[string]string, initFunctionsName map[string]bool) (string, error) {
@@ -304,6 +305,20 @@ func (m *jaalModule) UnionStruct(inputData pgs.Message, imports map[string]strin
 
 }
 
+func (m *jaalModule) GetMessageName(message pgs.Message) (string, error) {
+	opt := message.Descriptor().GetOptions() // checks file_skip option
+	if opt != nil {
+		x, err := proto.GetExtension(opt, pbt.E_Name)
+		if err != nil && err != proto.ErrMissingExtension {
+			return "", err
+		}
+		if x != nil {
+			return *x.(*string), nil;
+		}
+	}
+	return "", nil
+}
+
 func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string, PossibleReqObjects map[string]bool, initFunctionsName map[string]bool) (string, error) {
 	// returns generated template(Input) in for a message type
 
@@ -318,7 +333,12 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 
 	msg := InputClass{Name: inputData.Name().UpperCamelCase().String()}
 
-	if PossibleReqObjects[inputData.Name().String()] {
+	newName, err := m.GetMessageName(inputData)
+	if err != nil {
+		return "", err
+	} else if newName != "" {
+		msg.InputObjName = newName + "Input"
+	} else if PossibleReqObjects[inputData.Name().String()] {
 
 		msg.InputObjName = m.InputAppend(inputData.Name().UpperCamelCase().String())
 
@@ -507,6 +527,14 @@ func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]str
 	}
 
 	msg := Payload{Name: payloadData.Name().UpperCamelCase().String()}
+	newName, err := m.GetMessageName(payloadData)
+	if err != nil {
+		return "", err
+	} else if newName != "" {
+		msg.PayloadObjName = newName
+	} else {
+		msg.PayloadObjName = payloadData.Name().UpperCamelCase().String()
+	}
 	initFunctionsName["RegisterPayload"+msg.Name] = true
 	var maps []PayloadMap
 	for _, oneof := range payloadData.OneOfs() {
@@ -916,7 +944,7 @@ func (m *jaalModule) ServiceInput(service pgs.Service) (string, error) {
 				inputName += "."
 			}
 			inputName += rpc.Input().Name().UpperCamelCase().String()
-			varQuery = append(varQuery, Query{Oneofs:oneOfs,InputName: inputName, MapsData: mapsData, ReturnType: returnType, FieldName: fieldName, InType: inType, FirstReturnArgType: firstReturnArgType, ReturnFunc: returnFunc})
+			varQuery = append(varQuery, Query{Oneofs: oneOfs, InputName: inputName, MapsData: mapsData, ReturnType: returnType, FieldName: fieldName, InType: inType, FirstReturnArgType: firstReturnArgType, ReturnFunc: returnFunc})
 
 		} else if option.GetQuery() == "" {
 

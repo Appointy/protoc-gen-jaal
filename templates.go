@@ -86,7 +86,7 @@ func getPayloadTemplate() *template.Template {
 
 	tmpl := `
 func RegisterPayload{{.Name}}(schema *schemabuilder.Schema) {
-	payload := schema.Object("{{.Name}}", {{.Name}}{}){{$name:=.Name}}
+	payload := schema.Object("{{.PayloadObjName}}", {{.Name}}{}){{$name:=.Name}}
 	{{range .Maps}}
 		payload.FieldFunc("{{.FieldName}}", func(ctx context.Context, in *{{$name}}) (*schemabuilder.Map, error) {
 			data, err := json.Marshal({{.TargetVal}})

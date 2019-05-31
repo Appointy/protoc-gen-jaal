@@ -15,6 +15,14 @@ extend google.protobuf.MessageOptions{
     bool skip = 91112;
 }
 
+extend google.protobuf.FileOptions{
+    bool file_skip = 91113;
+}
+
+extend google.protobuf.MessageOptions{
+    string name = 91114;
+}
+
 message MethodOptions {
     oneof type {
         string query = 1;
