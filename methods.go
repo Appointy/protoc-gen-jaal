@@ -306,7 +306,7 @@ func (m *jaalModule) UnionStruct(inputData pgs.Message, imports map[string]strin
 }
 
 func (m *jaalModule) GetMessageName(message pgs.Message) (string, error) {
-	opt := message.Descriptor().GetOptions() // checks file_skip option
+	opt := message.Descriptor().GetOptions() // checks Name option
 	if opt != nil {
 		x, err := proto.GetExtension(opt, pbt.E_Name)
 		if err != nil && err != proto.ErrMissingExtension {
@@ -461,9 +461,13 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 			flag = false
 
 		} else if fields.Descriptor().GetType().String() == "TYPE_ENUM" {
-
+			goPkg:= m.GetGoPackageOfFiles(inputData.File(),fields.Type().Enum().File())
+			if goPkg!=""{
+				goPkg+="."
+			}
+			flag = false
 			tmsg := strings.Split(fields.Descriptor().GetTypeName(), ".")
-			msgArg += tmsg[len(tmsg)-1]
+			msgArg =goPkg+ tmsg[len(tmsg)-1]
 
 		} else {
 
@@ -624,16 +628,23 @@ func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]str
 			tVal += fields.Name().UpperCamelCase().String()
 
 		} else if fields.Descriptor().GetType().String() == "TYPE_ENUM" {
+			goPkg := m.GetGoPackageOfFiles(payloadData.File(),fields.Type().Enum().File())
+			if goPkg!= ""{
+				goPkg+="."
+			}
 
 			tTypeArr := strings.Split(fields.Descriptor().GetTypeName(), ".")
-			msgArg += tTypeArr[len(tTypeArr)-1]
+			msgArg =goPkg+ tTypeArr[len(tTypeArr)-1]
 			tVal += "in."
 			tVal += fields.Name().UpperCamelCase().String()
 
 		} else {
-
+			goPkg := m.GetGoPackageOfFiles(payloadData.File(),fields.File())
+			if goPkg!= ""{
+				goPkg+="."
+			}
 			tTypeArr := strings.Split(fields.Descriptor().GetType().String(), "_")
-			msgArg += m.scalarMap(tTypeArr[len(tTypeArr)-1])
+			msgArg =goPkg+ m.scalarMap(tTypeArr[len(tTypeArr)-1])
 			tVal += "in."
 			tVal += fields.Name().UpperCamelCase().String()
 
@@ -891,6 +902,13 @@ func (m *jaalModule) ServiceInput(service pgs.Service) (string, error) {
 
 						tType += "*"
 
+					}else if field.Type().IsEnum(){
+						goPkg:= m.GetGoPackageOfFiles(service.File(),field.Type().Enum().File())
+						if goPkg!= ""{
+							tType +=goPkg
+							tType+="."
+						}
+
 					}
 
 					funcRType := m.RPCFieldType(field)
@@ -1128,6 +1146,11 @@ func (m *jaalModule) ServiceStructInput(service pgs.Service) (string, error) {
 					if goPkg != "" {
 						goPkg += "."
 					}
+				}else if ipField.Type().IsEnum(){
+					goPkg = m.GetGoPackageOfFiles(service.File(), ipField.Type().Enum().File())
+					if goPkg != "" {
+						goPkg += "."
+					}
 				}
 
 				if ttype[0] == '*' {
@@ -1291,7 +1314,6 @@ func (m *jaalModule) GetGoPackage(target pgs.File) string {
 	goPackage := "pb"
 
 	if target.Descriptor().GetOptions() != nil && target.Descriptor().GetOptions().GoPackage != nil {
-
 		goPackage = *target.Descriptor().GetOptions().GoPackage
 		goPackage = strings.Split(goPackage, ";")[0]
 		goPackage = strings.Split(goPackage, "/")[len(strings.Split(goPackage, "/"))-1]
@@ -1437,6 +1459,11 @@ func (m *jaalModule) ServiceStructInputFunc(service pgs.Service, initFunctionsNa
 					if service.Package().ProtoName().String() != ipField.Type().Embed().Package().ProtoName().String() {
 
 						goPkg = m.GetGoPackage(ipField.Type().Embed().File()) + "."
+					}
+				}else if ipField.Type().IsEnum(){
+					goPkg = m.GetGoPackageOfFiles(service.File(),ipField.Type().Enum().File())
+					if goPkg!=""{
+						goPkg+="."
 					}
 				}
 				funcPara = "*" + goPkg + funcPara
