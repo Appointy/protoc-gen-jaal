@@ -50,6 +50,23 @@ func getInputTemplate() *template.Template {
 func RegisterInput{{.Name}}(schema *schemabuilder.Schema) {
 	input := schema.InputObject("{{.InputObjName}}", {{.Name}}{})
 	{{$name:=.Name}}
+	{{range .Maps}}
+		input.FieldFunc("{{.FieldName}}", func(target *{{$name}}, source *schemabuilder.Map) error {
+			v := source.Value
+	
+			decodedValue, err := base64.StdEncoding.DecodeString(v)
+			if err != nil {
+				return err
+			}
+	
+			data := make(map[{{.Key}}]{{.Value}})
+			if err := json.Unmarshal(decodedValue, &data); err != nil {
+				return err
+			}
+	
+			target.{{.TargetName}} = data
+			return nil
+		}){{end}}
 	{{range .Fields}}
 	input.FieldFunc("{{.FieldName}}", func(target *{{$name}}, source {{.FuncPara}}) {
 		target.{{.TargetName}} = {{.TargetVal}}
@@ -69,7 +86,16 @@ func getPayloadTemplate() *template.Template {
 
 	tmpl := `
 func RegisterPayload{{.Name}}(schema *schemabuilder.Schema) {
-	payload := schema.Object("{{.Name}}", {{.Name}}{}){{$name:=.Name}}
+	payload := schema.Object("{{.PayloadObjName}}", {{.Name}}{}){{$name:=.Name}}
+	{{range .Maps}}
+		payload.FieldFunc("{{.FieldName}}", func(ctx context.Context, in *{{$name}}) (*schemabuilder.Map, error) {
+			data, err := json.Marshal({{.TargetVal}})
+			if err != nil {
+				return nil, err
+			}
+	
+			return &schemabuilder.Map{Value:string(data)}, nil
+		}){{end}}
 	{{range .UnionObjects}}
 	payload.FieldFunc("{{.FieldName}}", func(ctx context.Context, in *{{$name}}) {{.FuncReturn}} {
 		switch v := in{{"."}}{{.SwitchName}}{{"."}}(type) {
@@ -105,9 +131,32 @@ func getServiceTemplate() *template.Template {
 func Register{{.Name}}Operations(schema *schemabuilder.Schema, client {{.Name}}Client) {
 	{{range .Queries}}
 		schema.Query().FieldFunc("{{.FieldName}}", func(ctx context.Context, args struct {
-			In {{.InType}}
+		{{range .InType}}
+		{{.Name}} {{.Type}}{{end}}
 		}) ({{.FirstReturnArgType}}, error) {
-			return client{{"."}}{{.ReturnFunc}}(ctx, args.In)
+			{{range .MapsData}}
+			v{{.Name}} := args.{{.Name}}.Value
+			decodedValue{{.Name}}, err{{.Name}} := base64.StdEncoding.DecodeString(v{{.Name}})
+			if err{{.Name}} != nil {
+				return nil,err{{.Name}}
+			}
+			{{.NewVarName}}Map := make(map[{{.Key}}]{{.Value}})
+			if err{{.Name}} := json.Unmarshal(decodedValue{{.Name}}, &{{.NewVarName}}Map); err{{.Name}} != nil {
+				return nil,err{{.Name}}
+			}{{end}}
+			request := &{{.InputName}}{
+			{{range .ReturnType}}
+			{{.Name}}: {{.Type}},{{end}}
+			}
+			{{range .Oneofs}}
+			{{$oneOfNameQ:= .Name}}
+				{{range .Fields}}
+					if args.{{.Name}} != nil{
+						request.{{$oneOfNameQ}} = args.{{.Name}}
+					}
+				{{end}}
+			{{end}}
+			return client{{"."}}{{.ReturnFunc}}(ctx, request)
 		})
 	{{end}}
 	{{range .Mutations}}
@@ -116,9 +165,14 @@ func Register{{.Name}}Operations(schema *schemabuilder.Schema, client {{.Name}}C
 		}) ({{.FirstReturnArgType}}, error) {
 			request := {{.RequestType}}{
 				{{range .RequestFields}}
-				{{.}}: args{{"."}}Input{{"."}}{{.}},
-				{{end}}
+				{{.}}: args{{"."}}Input{{"."}}{{.}},{{end}}
 			}
+			{{range .OneOfs}}
+			{{$oneOfName:= .Name}}
+				{{range .Fields}}
+				if args.Input.{{.Name}} != nil{
+					request.{{$oneOfName}} = args.Input.{{.Name}}
+				}{{end}}{{end}}
 			response, err := client{{"."}}{{.ResponseType}}(ctx, request)
 			return {{.ReturnType}}{
 				Payload:          response,
@@ -247,8 +301,25 @@ func getServiceStructInputFuncTemplate() *template.Template {
 {{range .}}
 func RegisterInput{{.Name}}Input(schema *schemabuilder.Schema) {
 	input := schema.InputObject("{{.Name}}Input", {{.Name}}Input{}) {{$name:=.Name}}
+	{{range .Maps}}
+		input.FieldFunc("{{.FieldName}}", func(target *{{$name}}Input, source *schemabuilder.Map) error {
+			v := source.Value
+	
+			decodedValue, err := base64.StdEncoding.DecodeString(v)
+			if err != nil {
+				return err
+			}
+	
+			data := make(map[{{.Key}}]{{.Value}})
+			if err := json.Unmarshal(decodedValue, &data); err != nil {
+				return err
+			}
+	
+			target.{{.TargetName}} = data
+			return nil
+		}){{end}}
 	{{range .Fields}}
-		input.FieldFunc("{{.FieldName}}", func(target *{{$name}}Input, source *{{.FuncPara}}) {
+		input.FieldFunc("{{.FieldName}}", func(target *{{$name}}Input, source {{.FuncPara}}) {
 			target{{"."}}{{.TargetName}} = {{.TargetVal}}
 		})
 	{{end}}
