@@ -168,6 +168,7 @@ type Oneof struct {
 	FieldFuncPara               string
 	FieldFuncSecondParaFuncPara string
 	TargetName                  string
+	TargetVal                   string
 }
 
 func (m *jaalModule) GetSkipOption(message pgs.Message) (bool, error) {
@@ -199,8 +200,10 @@ func (m *jaalModule) GetSkipOption(message pgs.Message) (bool, error) {
 }
 
 func (m *jaalModule) OneofInputType(inputData pgs.Message, imports map[string]string, initFunctionsName map[string]bool) (string, error) {
-	// returns generated template(Input) in for a Oneof type
-
+	/*
+		returns generated template(Input) in for a Oneof type
+		Primitive,Enum and object type are handled inside a oneof
+	*/
 	var oneOfArr []Oneof
 
 	for _, oneof := range inputData.OneOfs() {
@@ -213,7 +216,28 @@ func (m *jaalModule) OneofInputType(inputData pgs.Message, imports map[string]st
 			fieldFuncPara := fields.Name().LowerCamelCase().String()
 			targetName := fields.Name().UpperCamelCase().String()
 			fieldFuncSecondParaFuncPara := m.RPCFieldType(fields)
-			oneOfArr = append(oneOfArr, Oneof{Name: name, SchemaObjectPara: schemaObjectPara, FieldFuncPara: fieldFuncPara, TargetName: targetName, FieldFuncSecondParaFuncPara: fieldFuncSecondParaFuncPara})
+			if fieldFuncSecondParaFuncPara[0] == '*' {
+				fieldFuncSecondParaFuncPara = fieldFuncSecondParaFuncPara[1:len(fieldFuncSecondParaFuncPara)]
+			}
+			goPkg := ""
+			targetVal := ""
+			if fields.Type().IsEnum() {
+				goPkg = m.GetGoPackageOfFiles(inputData.File(), fields.Type().Enum().File())
+				if goPkg != "" {
+					goPkg += "."
+				}
+				targetVal = "*source"
+			} else if fields.Type().IsEmbed() {
+				goPkg = m.GetGoPackageOfFiles(inputData.File(), fields.Type().Embed().File())
+				if goPkg != "" {
+					goPkg += "."
+				}
+				targetVal = "source"
+			} else {
+				targetVal = "*source"
+			}
+			fieldFuncSecondParaFuncPara = goPkg + fieldFuncSecondParaFuncPara
+			oneOfArr = append(oneOfArr, Oneof{TargetVal: targetVal, Name: name, SchemaObjectPara: schemaObjectPara, FieldFuncPara: fieldFuncPara, TargetName: targetName, FieldFuncSecondParaFuncPara: fieldFuncSecondParaFuncPara})
 		}
 	}
 
@@ -238,8 +262,10 @@ type OneofPayload struct {
 }
 
 func (m *jaalModule) OneofPayloadType(inputData pgs.Message, imports map[string]string, initFunctionsName map[string]bool) (string, error) {
-	//returns generated template(Payload) in for all oneOf type
-
+	/*
+		returns generated template(Payload) in for all oneOf type
+		Primitive,Enum and object type are handled inside a oneof
+	*/
 	var oneOfArr []OneofPayload
 
 	for _, oneof := range inputData.OneOfs() {
@@ -251,6 +277,23 @@ func (m *jaalModule) OneofPayloadType(inputData pgs.Message, imports map[string]
 			schemaObjectPara := fields.Message().Name().LowerCamelCase().String() + fields.Name().UpperCamelCase().String()
 			fieldFuncPara := fields.Name().LowerCamelCase().String()
 			fieldFuncSecondFuncReturn := m.RPCFieldType(fields)
+			if fieldFuncSecondFuncReturn[0] == '*' {
+				fieldFuncSecondFuncReturn = fieldFuncSecondFuncReturn[1:len(fieldFuncSecondFuncReturn)]
+			}
+			goPkg := ""
+			if fields.Type().IsEnum() {
+				goPkg = m.GetGoPackageOfFiles(inputData.File(), fields.Type().Enum().File())
+				if goPkg != "" {
+					goPkg += "."
+				}
+			} else if fields.Type().IsEmbed() {
+				goPkg = m.GetGoPackageOfFiles(inputData.File(), fields.Type().Embed().File())
+				if goPkg != "" {
+					goPkg = "*" + goPkg
+					goPkg += "."
+				}
+			}
+			fieldFuncSecondFuncReturn = goPkg + fieldFuncSecondFuncReturn
 			fieldFuncReturn := fields.Name().UpperCamelCase().String()
 			oneOfArr = append(oneOfArr, OneofPayload{Name: name, SchemaObjectPara: schemaObjectPara, FieldFuncPara: fieldFuncPara, FieldFuncReturn: fieldFuncReturn, FieldFuncSecondFuncReturn: fieldFuncSecondFuncReturn})
 		}
@@ -334,10 +377,15 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 	msg := InputClass{Name: inputData.Name().UpperCamelCase().String()}
 
 	newName, err := m.GetMessageName(inputData)
+
 	if err != nil {
+
 		return "", err
+
 	} else if newName != "" {
+
 		msg.InputObjName = newName + "Input"
+
 	} else if PossibleReqObjects[inputData.Name().String()] {
 
 		msg.InputObjName = m.InputAppend(inputData.Name().UpperCamelCase().String())
@@ -461,13 +509,13 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 			flag = false
 
 		} else if fields.Descriptor().GetType().String() == "TYPE_ENUM" {
-			goPkg:= m.GetGoPackageOfFiles(inputData.File(),fields.Type().Enum().File())
-			if goPkg!=""{
-				goPkg+="."
+			goPkg := m.GetGoPackageOfFiles(inputData.File(), fields.Type().Enum().File())
+			if goPkg != "" {
+				goPkg += "."
 			}
 			flag = false
 			tmsg := strings.Split(fields.Descriptor().GetTypeName(), ".")
-			msgArg =goPkg+ tmsg[len(tmsg)-1]
+			msgArg = goPkg + tmsg[len(tmsg)-1]
 
 		} else {
 
@@ -628,23 +676,23 @@ func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]str
 			tVal += fields.Name().UpperCamelCase().String()
 
 		} else if fields.Descriptor().GetType().String() == "TYPE_ENUM" {
-			goPkg := m.GetGoPackageOfFiles(payloadData.File(),fields.Type().Enum().File())
-			if goPkg!= ""{
-				goPkg+="."
+			goPkg := m.GetGoPackageOfFiles(payloadData.File(), fields.Type().Enum().File())
+			if goPkg != "" {
+				goPkg += "."
 			}
 
 			tTypeArr := strings.Split(fields.Descriptor().GetTypeName(), ".")
-			msgArg =goPkg+ tTypeArr[len(tTypeArr)-1]
+			msgArg = goPkg + tTypeArr[len(tTypeArr)-1]
 			tVal += "in."
 			tVal += fields.Name().UpperCamelCase().String()
 
 		} else {
-			goPkg := m.GetGoPackageOfFiles(payloadData.File(),fields.File())
-			if goPkg!= ""{
-				goPkg+="."
+			goPkg := m.GetGoPackageOfFiles(payloadData.File(), fields.File())
+			if goPkg != "" {
+				goPkg += "."
 			}
 			tTypeArr := strings.Split(fields.Descriptor().GetType().String(), "_")
-			msgArg =goPkg+ m.scalarMap(tTypeArr[len(tTypeArr)-1])
+			msgArg = goPkg + m.scalarMap(tTypeArr[len(tTypeArr)-1])
 			tVal += "in."
 			tVal += fields.Name().UpperCamelCase().String()
 
@@ -902,11 +950,11 @@ func (m *jaalModule) ServiceInput(service pgs.Service) (string, error) {
 
 						tType += "*"
 
-					}else if field.Type().IsEnum(){
-						goPkg:= m.GetGoPackageOfFiles(service.File(),field.Type().Enum().File())
-						if goPkg!= ""{
-							tType +=goPkg
-							tType+="."
+					} else if field.Type().IsEnum() {
+						goPkg := m.GetGoPackageOfFiles(service.File(), field.Type().Enum().File())
+						if goPkg != "" {
+							tType += goPkg
+							tType += "."
 						}
 
 					}
@@ -1146,7 +1194,7 @@ func (m *jaalModule) ServiceStructInput(service pgs.Service) (string, error) {
 					if goPkg != "" {
 						goPkg += "."
 					}
-				}else if ipField.Type().IsEnum(){
+				} else if ipField.Type().IsEnum() {
 					goPkg = m.GetGoPackageOfFiles(service.File(), ipField.Type().Enum().File())
 					if goPkg != "" {
 						goPkg += "."
@@ -1235,10 +1283,10 @@ func (m *jaalModule) ServiceStructPayload(service pgs.Service) (string, error) {
 			continue
 
 		}
-		goPkg := m.GetGoPackageOfFiles(service.File(),rpc.Output().File())
+		goPkg := m.GetGoPackageOfFiles(service.File(), rpc.Output().File())
 
-		if goPkg != ""{
-			goPkg+="."
+		if goPkg != "" {
+			goPkg += "."
 		}
 
 		returnType := "*" + goPkg + rpc.Output().Name().UpperCamelCase().String()
@@ -1460,10 +1508,10 @@ func (m *jaalModule) ServiceStructInputFunc(service pgs.Service, initFunctionsNa
 
 						goPkg = m.GetGoPackage(ipField.Type().Embed().File()) + "."
 					}
-				}else if ipField.Type().IsEnum(){
-					goPkg = m.GetGoPackageOfFiles(service.File(),ipField.Type().Enum().File())
-					if goPkg!=""{
-						goPkg+="."
+				} else if ipField.Type().IsEnum() {
+					goPkg = m.GetGoPackageOfFiles(service.File(), ipField.Type().Enum().File())
+					if goPkg != "" {
+						goPkg += "."
 					}
 				}
 				funcPara = "*" + goPkg + funcPara
@@ -1521,9 +1569,9 @@ func (m *jaalModule) ServiceStructPayloadFunc(service pgs.Service, initFunctions
 		}
 
 		initFunctionsName["RegisterPayload"+rpc.Name().UpperCamelCase().String()+"Payload"] = true
-		goPkg := m.GetGoPackageOfFiles(service.File(),rpc.Output().File())
-		if goPkg != ""{
-			goPkg +="."
+		goPkg := m.GetGoPackageOfFiles(service.File(), rpc.Output().File())
+		if goPkg != "" {
+			goPkg += "."
 		}
 		returnType := "*" + goPkg + rpc.Output().Name().UpperCamelCase().String() // "*" + rpc.Output().Name().UpperCamelCase().String()
 		payloadService = append(payloadService, PayloadServiceStruct{Name: rpc.Name().UpperCamelCase().String(), ReturnType: returnType})
