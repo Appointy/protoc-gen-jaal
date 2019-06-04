@@ -258,7 +258,7 @@ func getOneofInputTemplate() *template.Template {
 func RegisterInput{{.Name}}(schema *schemabuilder.Schema) {
 	input := schema.InputObject("{{.SchemaObjectPara}}", {{.Name}}{})
 	input.FieldFunc("{{.FieldFuncPara}}", func(target *{{.Name}}, source *{{.FieldFuncSecondParaFuncPara}}) {
-		target{{"."}}{{.TargetName}} = *source
+		target{{"."}}{{.TargetName}} ={{.TargetVal}}
 	})
 }
 {{end}}
