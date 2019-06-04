@@ -291,6 +291,8 @@ func (m *jaalModule) OneofPayloadType(inputData pgs.Message, imports map[string]
 				if goPkg != "" {
 					goPkg = "*" + goPkg
 					goPkg += "."
+				}else{
+					goPkg="*"
 				}
 			}
 			fieldFuncSecondFuncReturn = goPkg + fieldFuncSecondFuncReturn
