@@ -280,7 +280,7 @@ func getOneofPayloadTemplate() *template.Template {
 func RegisterPayload{{.Name}}(schema *schemabuilder.Schema) {
 	payload := schema.Object("{{.Name}}", {{.Name}}{})
 	payload.FieldFunc("{{.FieldFuncPara}}", func(ctx context.Context, in *{{.Name}}) {{.FieldFuncSecondFuncReturn}} {
-		return in{{"."}}{{.FieldFuncReturn}}
+		return {{.FieldFuncReturn}}
 	})
 }
 {{end}}
