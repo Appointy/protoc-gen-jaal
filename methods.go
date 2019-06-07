@@ -237,6 +237,9 @@ func (m *jaalModule) OneofInputType(inputData pgs.Message, imports map[string]st
 				targetVal = "*source"
 			}
 			fieldFuncSecondParaFuncPara = goPkg + fieldFuncSecondParaFuncPara
+			if fieldFuncSecondParaFuncPara=="field_mask.FieldMask"{
+				targetVal = "gtypes.ModifyFieldMask(source)"
+			}
 			oneOfArr = append(oneOfArr, Oneof{TargetVal: targetVal, Name: name, SchemaObjectPara: schemaObjectPara, FieldFuncPara: fieldFuncPara, TargetName: targetName, FieldFuncSecondParaFuncPara: fieldFuncSecondParaFuncPara})
 		}
 	}
@@ -291,10 +294,17 @@ func (m *jaalModule) OneofPayloadType(inputData pgs.Message, imports map[string]
 				if goPkg != "" {
 					goPkg = "*" + goPkg
 					goPkg += "."
+				}else{
+					goPkg="*"
 				}
 			}
 			fieldFuncSecondFuncReturn = goPkg + fieldFuncSecondFuncReturn
 			fieldFuncReturn := fields.Name().UpperCamelCase().String()
+			if fieldFuncSecondFuncReturn=="*field_mask.FieldMask"{
+				fieldFuncReturn = "gtypes.ModifyFieldMask(in."+fieldFuncReturn+")"
+			}else{
+				fieldFuncReturn = "in."+fieldFuncReturn
+			}
 			oneOfArr = append(oneOfArr, OneofPayload{Name: name, SchemaObjectPara: schemaObjectPara, FieldFuncPara: fieldFuncPara, FieldFuncReturn: fieldFuncReturn, FieldFuncSecondFuncReturn: fieldFuncSecondFuncReturn})
 		}
 	}
@@ -544,6 +554,8 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 			msgArg += "schemabuilder.Timestamp"
 
 			tVal = "(*timestamp.Timestamp)(" + tVal + ")"
+		}else if strings.HasSuffix(msgArg, "field_mask.FieldMask") {
+			tVal = "gtypes.ModifyFieldMask(" + tVal + ")"
 		}
 		msg.Fields = append(msg.Fields, MsgFields{TargetName: targetName, FieldName: fieldName, FuncPara: msgArg, TargetVal: tVal})
 
@@ -704,6 +716,8 @@ func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]str
 			msgArg += "schemabuilder.Timestamp"
 
 			tVal = "(*schemabuilder.Timestamp)(" + tVal + ")"
+		}else if strings.HasSuffix(msgArg, "field_mask.FieldMask") {
+			tVal = "gtypes.ModifyFieldMask(" + tVal + ")"
 		}
 
 		msg.Fields = append(msg.Fields, PayloadFields{FieldName: fieldName, FuncPara: msgArg, TargetVal: tVal})
@@ -984,6 +998,8 @@ func (m *jaalModule) ServiceInput(service pgs.Service) (string, error) {
 				} else if tType == "*timestamp.Timestamp" {
 					tType = "*schemabuilder.Timestamp"
 					returnType = append(returnType, Fields{Name: name, Type: "(*timestamp.Timestamp)" + "(args." + name + ")"})
+				}else if tType == "*field_mask.FieldMask"{
+					returnType = append(returnType, Fields{Name: name, Type: "gtypes.ModifyFieldMask" + "(args." + name + ")"})
 				} else if field.Type().IsMap() {
 					returnType = append(returnType, Fields{Name: name, Type: field.Name().LowerCamelCase().String() + "Map"})
 				} else {
@@ -1519,6 +1535,8 @@ func (m *jaalModule) ServiceStructInputFunc(service pgs.Service, initFunctionsNa
 			if strings.HasSuffix(funcPara, "*timestamp.Timestamp") {
 				funcPara = funcPara[:len(funcPara)-19] + "schemabuilder.Timestamp"
 				tval = "(*timestamp.Timestamp)(source)"
+			}else if strings.HasSuffix(funcPara, "*field_mask.FieldMask") {
+				tval = "gtypes.ModifyFieldMask(source)"
 			}
 
 			field = append(field, MsgFields{TargetName: tname, FieldName: fName, FuncPara: funcPara, TargetVal: tval})

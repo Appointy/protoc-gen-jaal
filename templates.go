@@ -258,7 +258,7 @@ func getOneofInputTemplate() *template.Template {
 func RegisterInput{{.Name}}(schema *schemabuilder.Schema) {
 	input := schema.InputObject("{{.SchemaObjectPara}}", {{.Name}}{})
 	input.FieldFunc("{{.FieldFuncPara}}", func(target *{{.Name}}, source *{{.FieldFuncSecondParaFuncPara}}) {
-		target{{"."}}{{.TargetName}} = *source
+		target{{"."}}{{.TargetName}} ={{.TargetVal}}
 	})
 }
 {{end}}
@@ -280,7 +280,7 @@ func getOneofPayloadTemplate() *template.Template {
 func RegisterPayload{{.Name}}(schema *schemabuilder.Schema) {
 	payload := schema.Object("{{.Name}}", {{.Name}}{})
 	payload.FieldFunc("{{.FieldFuncPara}}", func(ctx context.Context, in *{{.Name}}) {{.FieldFuncSecondFuncReturn}} {
-		return in{{"."}}{{.FieldFuncReturn}}
+		return {{.FieldFuncReturn}}
 	})
 }
 {{end}}
