@@ -237,7 +237,7 @@ func (m *jaalModule) OneofInputType(inputData pgs.Message, imports map[string]st
 				targetVal = "*source"
 			}
 			fieldFuncSecondParaFuncPara = goPkg + fieldFuncSecondParaFuncPara
-			if fieldFuncSecondParaFuncPara=="field_mask.FieldMask"{
+			if fieldFuncSecondParaFuncPara == "field_mask.FieldMask" {
 				targetVal = "gtypes.ModifyFieldMask(source)"
 			}
 			oneOfArr = append(oneOfArr, Oneof{TargetVal: targetVal, Name: name, SchemaObjectPara: schemaObjectPara, FieldFuncPara: fieldFuncPara, TargetName: targetName, FieldFuncSecondParaFuncPara: fieldFuncSecondParaFuncPara})
@@ -294,16 +294,16 @@ func (m *jaalModule) OneofPayloadType(inputData pgs.Message, imports map[string]
 				if goPkg != "" {
 					goPkg = "*" + goPkg
 					goPkg += "."
-				}else{
-					goPkg="*"
+				} else {
+					goPkg = "*"
 				}
 			}
 			fieldFuncSecondFuncReturn = goPkg + fieldFuncSecondFuncReturn
 			fieldFuncReturn := fields.Name().UpperCamelCase().String()
-			if fieldFuncSecondFuncReturn=="*field_mask.FieldMask"{
-				fieldFuncReturn = "gtypes.ModifyFieldMask(in."+fieldFuncReturn+")"
-			}else{
-				fieldFuncReturn = "in."+fieldFuncReturn
+			if fieldFuncSecondFuncReturn == "*field_mask.FieldMask" {
+				fieldFuncReturn = "gtypes.ModifyFieldMask(in." + fieldFuncReturn + ")"
+			} else {
+				fieldFuncReturn = "in." + fieldFuncReturn
 			}
 			oneOfArr = append(oneOfArr, OneofPayload{Name: name, SchemaObjectPara: schemaObjectPara, FieldFuncPara: fieldFuncPara, FieldFuncReturn: fieldFuncReturn, FieldFuncSecondFuncReturn: fieldFuncSecondFuncReturn})
 		}
@@ -384,7 +384,15 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 		return "", nil
 	}
 
-	msg := InputClass{Name: inputData.Name().UpperCamelCase().String()}
+	fullyQualifiedName := inputData.FullyQualifiedName()
+	embeddedMessageParent := ""
+	if inputData.Parent().Name().String() == strings.Split(fullyQualifiedName, ".")[len(strings.Split(fullyQualifiedName, "."))-2] {
+		lenPackage:= len(inputData.Package().ProtoName().String())
+		endlength:=len(inputData.Name().String())
+		embeddedMessageParent = strings.Replace(fullyQualifiedName[lenPackage+2:len(fullyQualifiedName)-endlength],".","_",-1)
+	}
+
+	msg := InputClass{Name: embeddedMessageParent + inputData.Name().UpperCamelCase().String()}
 
 	newName, err := m.GetMessageName(inputData)
 
@@ -426,6 +434,7 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 	}
 
 	for _, fields := range inputData.NonOneOfFields() {
+		//m.Log(fields.Name(),fields.Type().IsEmbed())
 
 		msgArg := ""
 		tVal := ""
@@ -471,13 +480,20 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 
 			}
 
-			if tObj.IsEmbed() && tObj.Embed().File().Descriptor().Options != nil && tObj.Embed().File().Descriptor().Options.GoPackage != nil {
+			if tObj.IsEmbed(){
 
-				if inputData.Package().ProtoName().String() != tObj.Embed().Package().ProtoName().String() {
+				if  tObj.Embed().File().Descriptor().Options != nil && tObj.Embed().File().Descriptor().Options.GoPackage != nil && inputData.Package().ProtoName().String() != tObj.Embed().Package().ProtoName().String() {
 
 					msgArg += m.GetGoPackage(tObj.Embed().File())
 					msgArg += "."
 
+				}else{
+					if strings.Split(tObj.Embed().FullyQualifiedName(), ".")[len(strings.Split(tObj.Embed().FullyQualifiedName(), "."))-2] == tObj.Embed().Parent().Name().String(){
+						tlenPackage:= len(fields.Package().ProtoName().String())
+						tendlength:=len(fields.Name().String())
+						tembeddedMessageParent := strings.Replace(fields.FullyQualifiedName()[tlenPackage+2:len(fields.FullyQualifiedName())-tendlength],".","_",-1)
+						msgArg += tembeddedMessageParent
+					}
 				}
 			}
 
@@ -510,6 +526,13 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 				if goPkg != "" {
 					msgArg += goPkg
 					msgArg += "."
+				} else {
+					if strings.Split(fields.FullyQualifiedName(), ".")[len(strings.Split(fields.FullyQualifiedName(), "."))-2] == fields.Type().Embed().Parent().Name().String() {
+						tlenPackage:= len(fields.Package().ProtoName().String())
+						tendlength:=len(fields.Name().String())
+						tembeddedMessageParent := strings.Replace(fields.FullyQualifiedName()[tlenPackage+2:len(fields.FullyQualifiedName())-tendlength],".","_",-1)
+						msgArg += tembeddedMessageParent
+					}
 				}
 			}
 
@@ -554,7 +577,7 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 			msgArg += "schemabuilder.Timestamp"
 
 			tVal = "(*timestamp.Timestamp)(" + tVal + ")"
-		}else if strings.HasSuffix(msgArg, "field_mask.FieldMask") {
+		} else if strings.HasSuffix(msgArg, "field_mask.FieldMask") {
 			tVal = "gtypes.ModifyFieldMask(" + tVal + ")"
 		}
 		msg.Fields = append(msg.Fields, MsgFields{TargetName: targetName, FieldName: fieldName, FuncPara: msgArg, TargetVal: tVal})
@@ -586,7 +609,14 @@ func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]str
 		return "", nil
 	}
 
-	msg := Payload{Name: payloadData.Name().UpperCamelCase().String()}
+	fullyQualifiedName := payloadData.FullyQualifiedName()
+	embeddedMessageParent := ""
+	if payloadData.Parent().Name().String() == strings.Split(fullyQualifiedName, ".")[len(strings.Split(fullyQualifiedName, "."))-2] {
+		lenPackage:= len(payloadData.Package().ProtoName().String())
+		endlength:=len(payloadData.Name().String())
+		embeddedMessageParent = strings.Replace(fullyQualifiedName[lenPackage+2:len(fullyQualifiedName)-endlength],".","_",-1)
+	}
+	msg := Payload{Name: embeddedMessageParent + payloadData.Name().UpperCamelCase().String()}
 	newName, err := m.GetMessageName(payloadData)
 	if err != nil {
 		return "", err
@@ -647,12 +677,19 @@ func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]str
 
 			}
 
-			if tObj.IsEmbed() && tObj.Embed().File().Descriptor().Options != nil && tObj.Embed().File().Descriptor().Options.GoPackage != nil {
+			if tObj.IsEmbed(){
 
-				if payloadData.Package().ProtoName().String() != tObj.Embed().Package().ProtoName().String() {
+				if tObj.Embed().File().Descriptor().Options != nil && tObj.Embed().File().Descriptor().Options.GoPackage != nil  && payloadData.Package().ProtoName().String() != tObj.Embed().Package().ProtoName().String() {
 
 					msgArg += m.GetGoPackage(tObj.Embed().File())
 					msgArg += "."
+				}else{
+					if strings.Split(tObj.Embed().FullyQualifiedName(), ".")[len(strings.Split(tObj.Embed().FullyQualifiedName(), "."))-2] == tObj.Embed().Parent().Name().String(){
+						tlenPackage:= len(fields.Package().ProtoName().String())
+						tendlength:=len(fields.Name().String())
+						tembeddedMessageParent := strings.Replace(fields.FullyQualifiedName()[tlenPackage+2:len(fields.FullyQualifiedName())-tendlength],".","_",-1)
+						msgArg += tembeddedMessageParent
+					}
 				}
 
 			}
@@ -678,6 +715,13 @@ func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]str
 				if goPkg != "" {
 					msgArg += goPkg
 					msgArg += "."
+				} else {
+					if strings.Split(fields.FullyQualifiedName(), ".")[len(strings.Split(fields.FullyQualifiedName(), "."))-2] == fields.Type().Embed().Parent().Name().String() {
+						tlenPackage:= len(fields.Package().ProtoName().String())
+						tendlength:=len(fields.Name().String())
+						tembeddedMessageParent := strings.Replace(fields.FullyQualifiedName()[tlenPackage+2:len(fields.FullyQualifiedName())-tendlength],".","_",-1)
+						msgArg += tembeddedMessageParent
+					}
 				}
 			}
 
@@ -716,7 +760,7 @@ func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]str
 			msgArg += "schemabuilder.Timestamp"
 
 			tVal = "(*schemabuilder.Timestamp)(" + tVal + ")"
-		}else if strings.HasSuffix(msgArg, "field_mask.FieldMask") {
+		} else if strings.HasSuffix(msgArg, "field_mask.FieldMask") {
 			tVal = "gtypes.ModifyFieldMask(" + tVal + ")"
 		}
 
@@ -911,6 +955,10 @@ func (m *jaalModule) ServiceInput(service pgs.Service) (string, error) {
 							tType += m.GetGoPackage(tObj.Embed().File())
 							tType += "."
 
+						}else{
+							if strings.Split(tObj.Embed().FullyQualifiedName(), ".")[len(strings.Split(tObj.Embed().FullyQualifiedName(), "."))-2] == tObj.Embed().Parent().Name().String(){
+								tType+= (tObj.Embed().Parent().Name().String()+"_")
+							}
 						}
 
 					}
@@ -936,17 +984,18 @@ func (m *jaalModule) ServiceInput(service pgs.Service) (string, error) {
 					mapsData = append(mapsData, MapData{Name: name, NewVarName: field.Name().LowerCamelCase().String(), Key: m.fieldElementType(field.Type().Key()), Value: value})
 					//returnType = "map returns"
 				} else if field.Type().IsEmbed() && field.Type().Embed().File().Descriptor().Options != nil && field.Type().Embed().File().Descriptor().Options.GoPackage != nil {
-
 					goPkg := m.GetGoPackageOfFiles(service.File(), field.Type().Embed().File())
 					if goPkg != "" {
 						tType += goPkg
 						tType += "."
-					}
-					if field.Type().IsEmbed() {
+					} else {
+						if strings.Split(field.FullyQualifiedName(), ".")[len(strings.Split(field.FullyQualifiedName(), "."))-2] == field.Type().Embed().Parent().Name().String() {
 
-						tType = "*" + tType
-
+							tType += field.Type().Embed().Parent().Name().String() + "_"
+						}
 					}
+
+					tType = "*" + tType
 
 					funcRType := m.RPCFieldType(field)
 
@@ -959,7 +1008,6 @@ func (m *jaalModule) ServiceInput(service pgs.Service) (string, error) {
 					tType += funcRType
 
 				} else {
-
 					if field.Type().IsEmbed() {
 
 						tType += "*"
@@ -998,7 +1046,7 @@ func (m *jaalModule) ServiceInput(service pgs.Service) (string, error) {
 				} else if tType == "*timestamp.Timestamp" {
 					tType = "*schemabuilder.Timestamp"
 					returnType = append(returnType, Fields{Name: name, Type: "(*timestamp.Timestamp)" + "(args." + name + ")"})
-				}else if tType == "*field_mask.FieldMask"{
+				} else if tType == "*field_mask.FieldMask" {
 					returnType = append(returnType, Fields{Name: name, Type: "gtypes.ModifyFieldMask" + "(args." + name + ")"})
 				} else if field.Type().IsMap() {
 					returnType = append(returnType, Fields{Name: name, Type: field.Name().LowerCamelCase().String() + "Map"})
@@ -1180,6 +1228,10 @@ func (m *jaalModule) ServiceStructInput(service pgs.Service) (string, error) {
 
 						ttype += m.GetGoPackage(tObj.Embed().File())
 						ttype += "."
+					}else{
+						if strings.Split(tObj.Embed().FullyQualifiedName(), ".")[len(strings.Split(tObj.Embed().FullyQualifiedName(), "."))-2] == tObj.Embed().Parent().Name().String(){
+							ttype+= (tObj.Embed().Parent().Name().String()+"_")
+						}
 					}
 				}
 
@@ -1209,6 +1261,10 @@ func (m *jaalModule) ServiceStructInput(service pgs.Service) (string, error) {
 					goPkg = m.GetGoPackageOfFiles(service.File(), ipField.Type().Embed().File())
 					if goPkg != "" {
 						goPkg += "."
+					} else {
+						if strings.Split(ipField.FullyQualifiedName(), ".")[len(strings.Split(ipField.FullyQualifiedName(), "."))-2] == ipField.Type().Embed().Parent().Name().String() {
+							goPkg += ipField.Type().Embed().Parent().Name().String() + "_"
+						}
 					}
 				} else if ipField.Type().IsEnum() {
 					goPkg = m.GetGoPackageOfFiles(service.File(), ipField.Type().Enum().File())
@@ -1473,6 +1529,10 @@ func (m *jaalModule) ServiceStructInputFunc(service pgs.Service, initFunctionsNa
 						funcPara += m.GetGoPackage(tObj.Embed().File())
 						funcPara += "."
 
+					}else{
+						if strings.Split(tObj.Embed().FullyQualifiedName(), ".")[len(strings.Split(tObj.Embed().FullyQualifiedName(), "."))-2] == tObj.Embed().Parent().Name().String(){
+							funcPara+= (tObj.Embed().Parent().Name().String()+"_")
+						}
 					}
 
 				}
@@ -1517,12 +1577,16 @@ func (m *jaalModule) ServiceStructInputFunc(service pgs.Service, initFunctionsNa
 				}
 
 				goPkg := ""
+				if ipField.Type().IsEmbed() {
 
-				if ipField.Type().IsEmbed() && ipField.Type().Embed().File().Descriptor().Options != nil && ipField.Type().Embed().File().Descriptor().Options.GoPackage != nil {
-
-					if service.Package().ProtoName().String() != ipField.Type().Embed().Package().ProtoName().String() {
+					if ipField.Type().Embed().File().Descriptor().Options != nil && ipField.Type().Embed().File().Descriptor().Options.GoPackage != nil && service.Package().ProtoName().String() != ipField.Type().Embed().Package().ProtoName().String() {
 
 						goPkg = m.GetGoPackage(ipField.Type().Embed().File()) + "."
+					} else {
+						// message is embedded inside a message then it's gopkg is it's parent message
+						if strings.Split(ipField.FullyQualifiedName(), ".")[len(strings.Split(ipField.FullyQualifiedName(), "."))-2] == ipField.Type().Embed().Parent().Name().String() {
+							goPkg = ipField.Type().Embed().Parent().Name().String() + "_"
+						}
 					}
 				} else if ipField.Type().IsEnum() {
 					goPkg = m.GetGoPackageOfFiles(service.File(), ipField.Type().Enum().File())
@@ -1535,7 +1599,7 @@ func (m *jaalModule) ServiceStructInputFunc(service pgs.Service, initFunctionsNa
 			if strings.HasSuffix(funcPara, "*timestamp.Timestamp") {
 				funcPara = funcPara[:len(funcPara)-19] + "schemabuilder.Timestamp"
 				tval = "(*timestamp.Timestamp)(source)"
-			}else if strings.HasSuffix(funcPara, "*field_mask.FieldMask") {
+			} else if strings.HasSuffix(funcPara, "*field_mask.FieldMask") {
 				tval = "gtypes.ModifyFieldMask(source)"
 			}
 
