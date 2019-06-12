@@ -387,7 +387,9 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 	fullyQualifiedName := inputData.FullyQualifiedName()
 	embeddedMessageParent := ""
 	if inputData.Parent().Name().String() == strings.Split(fullyQualifiedName, ".")[len(strings.Split(fullyQualifiedName, "."))-2] {
-		embeddedMessageParent = inputData.Parent().Name().UpperCamelCase().String() + "_"
+		lenPackage:= len(inputData.Package().ProtoName().String())
+		endlength:=len(inputData.Name().String())
+		embeddedMessageParent = strings.Replace(fullyQualifiedName[lenPackage+2:len(fullyQualifiedName)-endlength],".","_",-1)
 	}
 
 	msg := InputClass{Name: embeddedMessageParent + inputData.Name().UpperCamelCase().String()}
@@ -487,7 +489,10 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 
 				}else{
 					if strings.Split(tObj.Embed().FullyQualifiedName(), ".")[len(strings.Split(tObj.Embed().FullyQualifiedName(), "."))-2] == tObj.Embed().Parent().Name().String(){
-						msgArg+= (tObj.Embed().Parent().Name().String()+"_")
+						tlenPackage:= len(fields.Package().ProtoName().String())
+						tendlength:=len(fields.Name().String())
+						tembeddedMessageParent := strings.Replace(fields.FullyQualifiedName()[tlenPackage+2:len(fields.FullyQualifiedName())-tendlength],".","_",-1)
+						msgArg += tembeddedMessageParent
 					}
 				}
 			}
@@ -523,7 +528,10 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 					msgArg += "."
 				} else {
 					if strings.Split(fields.FullyQualifiedName(), ".")[len(strings.Split(fields.FullyQualifiedName(), "."))-2] == fields.Type().Embed().Parent().Name().String() {
-						msgArg += inputData.Name().UpperCamelCase().String() + "_"
+						tlenPackage:= len(fields.Package().ProtoName().String())
+						tendlength:=len(fields.Name().String())
+						tembeddedMessageParent := strings.Replace(fields.FullyQualifiedName()[tlenPackage+2:len(fields.FullyQualifiedName())-tendlength],".","_",-1)
+						msgArg += tembeddedMessageParent
 					}
 				}
 			}
@@ -604,7 +612,9 @@ func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]str
 	fullyQualifiedName := payloadData.FullyQualifiedName()
 	embeddedMessageParent := ""
 	if payloadData.Parent().Name().String() == strings.Split(fullyQualifiedName, ".")[len(strings.Split(fullyQualifiedName, "."))-2] {
-		embeddedMessageParent = payloadData.Parent().Name().UpperCamelCase().String() + "_"
+		lenPackage:= len(payloadData.Package().ProtoName().String())
+		endlength:=len(payloadData.Name().String())
+		embeddedMessageParent = strings.Replace(fullyQualifiedName[lenPackage+2:len(fullyQualifiedName)-endlength],".","_",-1)
 	}
 	msg := Payload{Name: embeddedMessageParent + payloadData.Name().UpperCamelCase().String()}
 	newName, err := m.GetMessageName(payloadData)
@@ -675,7 +685,10 @@ func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]str
 					msgArg += "."
 				}else{
 					if strings.Split(tObj.Embed().FullyQualifiedName(), ".")[len(strings.Split(tObj.Embed().FullyQualifiedName(), "."))-2] == tObj.Embed().Parent().Name().String(){
-						msgArg+= (tObj.Embed().Parent().Name().String()+"_")
+						tlenPackage:= len(fields.Package().ProtoName().String())
+						tendlength:=len(fields.Name().String())
+						tembeddedMessageParent := strings.Replace(fields.FullyQualifiedName()[tlenPackage+2:len(fields.FullyQualifiedName())-tendlength],".","_",-1)
+						msgArg += tembeddedMessageParent
 					}
 				}
 
@@ -704,7 +717,10 @@ func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]str
 					msgArg += "."
 				} else {
 					if strings.Split(fields.FullyQualifiedName(), ".")[len(strings.Split(fields.FullyQualifiedName(), "."))-2] == fields.Type().Embed().Parent().Name().String() {
-						msgArg += payloadData.Name().UpperCamelCase().String() + "_"
+						tlenPackage:= len(fields.Package().ProtoName().String())
+						tendlength:=len(fields.Name().String())
+						tembeddedMessageParent := strings.Replace(fields.FullyQualifiedName()[tlenPackage+2:len(fields.FullyQualifiedName())-tendlength],".","_",-1)
+						msgArg += tembeddedMessageParent
 					}
 				}
 			}
@@ -974,7 +990,6 @@ func (m *jaalModule) ServiceInput(service pgs.Service) (string, error) {
 						tType += "."
 					} else {
 						if strings.Split(field.FullyQualifiedName(), ".")[len(strings.Split(field.FullyQualifiedName(), "."))-2] == field.Type().Embed().Parent().Name().String() {
-							m.Log(field.Name())
 
 							tType += field.Type().Embed().Parent().Name().String() + "_"
 						}
