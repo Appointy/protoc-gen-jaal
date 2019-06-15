@@ -209,7 +209,12 @@ func (m *jaalModule) OneofInputType(inputData pgs.Message, imports map[string]st
 	for _, oneof := range inputData.OneOfs() {
 
 		for _, fields := range oneof.Fields() {
-
+			//checks skip_input field option
+			if fieldSkip,err:=m.GetFieldOptionInput(fields);err!=nil{
+				return "", err
+			}else if fieldSkip{
+				continue
+			}
 			name := fields.Message().Name().UpperCamelCase().String() + "_" + fields.Name().UpperCamelCase().String()
 			initFunctionsName["RegisterInput"+name] = true
 			schemaObjectPara := fields.Message().Name().LowerCamelCase().String() + fields.Name().UpperCamelCase().String()
@@ -274,7 +279,12 @@ func (m *jaalModule) OneofPayloadType(inputData pgs.Message, imports map[string]
 	for _, oneof := range inputData.OneOfs() {
 
 		for _, fields := range oneof.Fields() {
-
+			//checks skip_payload field option
+			if fieldSkip,err:=m.GetFieldOptionPayload(fields);err!=nil{
+				return "", err
+			}else if fieldSkip{
+				continue
+			}
 			name := fields.Message().Name().UpperCamelCase().String() + "_" + fields.Name().UpperCamelCase().String()
 			initFunctionsName["RegisterPayload"+name] = true
 			schemaObjectPara := fields.Message().Name().LowerCamelCase().String() + fields.Name().UpperCamelCase().String()
@@ -384,6 +394,7 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 		return "", nil
 	}
 
+	// handles embedded messages
 	fullyQualifiedName := inputData.FullyQualifiedName()
 	embeddedMessageParent := ""
 	if inputData.Parent().Name().String() == strings.Split(fullyQualifiedName, ".")[len(strings.Split(fullyQualifiedName, "."))-2] {
@@ -426,6 +437,12 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 		unionName += oneof.Name().UpperCamelCase().String()
 
 		for _, fields := range oneof.Fields() {
+			//checks skip_input field option
+			if fieldSkip,err:=m.GetFieldOptionInput(fields);err!=nil{
+				return "", err
+			}else if fieldSkip{
+				continue
+			}
 
 			msg.Fields = append(msg.Fields, MsgFields{TargetName: oneof.Name().UpperCamelCase().String(), FieldName: oneof.Message().Name().LowerCamelCase().String() + fields.Name().UpperCamelCase().String(), FuncPara: "*" + fields.Message().Name().UpperCamelCase().String() + "_" + fields.Name().UpperCamelCase().String(), TargetVal: "source"})
 
@@ -435,6 +452,13 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 
 	for _, fields := range inputData.NonOneOfFields() {
 		//m.Log(fields.Name(),fields.Type().IsEmbed())
+
+		//checks skip_input field option
+		if fieldSkip,err:=m.GetFieldOptionInput(fields);err!=nil{
+			return "", err
+		}else if fieldSkip{
+			continue
+		}
 
 		msgArg := ""
 		tVal := ""
@@ -632,7 +656,12 @@ func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]str
 		var oneofFields []OneOfFields
 
 		for _, fields := range oneof.Fields() {
-
+			//checks skip_payload field option
+			if fieldSkip,err:=m.GetFieldOptionPayload(fields);err!=nil{
+				return "", err
+			}else if fieldSkip{
+				continue
+			}
 			caseName := fields.Message().Name().UpperCamelCase().String() + "_" + fields.Name().UpperCamelCase().String()
 			returnType := "&Union" + oneof.Message().Name().UpperCamelCase().String() + oneof.Name().UpperCamelCase().String()
 			oneofFields = append(oneofFields, OneOfFields{CaseName: caseName, ReturnType: returnType})
@@ -646,6 +675,12 @@ func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]str
 
 	}
 	for _, fields := range payloadData.NonOneOfFields() {
+		//checks skip_payload field option
+		if fieldSkip,err:=m.GetFieldOptionPayload(fields);err!=nil{
+			return "", err
+		}else if fieldSkip{
+			continue
+		}
 
 		msgArg := ""
 		tVal := ""
@@ -849,6 +884,64 @@ func (m *jaalModule) InputAppend(str string) string {
 	}
 }
 
+func (m *jaalModule) GetFieldOptionInput(field pgs.Field) (bool, error) {
+	//returns input_skip option for a message field
+
+	opt := field.Descriptor().GetOptions()
+	x, err := proto.GetExtension(opt, pbt.E_InputSkip)
+
+	if opt == nil {
+
+		return false, nil
+
+	}
+
+	if err != nil {
+
+		if err == proto.ErrMissingExtension {
+
+			return false, nil
+
+		}
+
+		return false, err
+
+	}
+
+	option := *x.(*bool)
+
+	return option, nil
+}
+
+func (m *jaalModule) GetFieldOptionPayload(field pgs.Field) (bool, error) {
+	//returns payload_skip option for a message field
+
+	opt := field.Descriptor().GetOptions()
+	x, err := proto.GetExtension(opt, pbt.E_PayloadSkip)
+
+	if opt == nil {
+
+		return false, nil
+
+	}
+
+	if err != nil {
+
+		if err == proto.ErrMissingExtension {
+
+			return false, nil
+
+		}
+
+		return false, err
+
+	}
+
+	option := *x.(*bool)
+
+	return option, nil
+}
+
 func (m *jaalModule) GetOption(rpc pgs.Method) (bool, pbt.MethodOptions, error) {
 	//returns method option for a rpc method (Used to get query and mutation data)
 
@@ -917,6 +1010,12 @@ func (m *jaalModule) ServiceInput(service pgs.Service) (string, error) {
 			for _, oneOf := range rpc.Input().OneOfs() {
 				var fields []Fields
 				for _, field := range oneOf.Fields() {
+					//checks skip_input field option
+					if fieldSkip,err:=m.GetFieldOptionInput(field);err!=nil{
+						return "", err
+					}else if fieldSkip{
+						continue
+					}
 					goPkg := m.GetGoPackageOfFiles(service.File(), field.File())
 					if goPkg != "" {
 						goPkg += "."
@@ -929,7 +1028,12 @@ func (m *jaalModule) ServiceInput(service pgs.Service) (string, error) {
 				oneOfs = append(oneOfs, OneOfMutation{Name: oneOf.Name().UpperCamelCase().String(), Fields: fields})
 			}
 			for _, field := range rpc.Input().Fields() {
-
+				//checks skip_input field option
+				if fieldSkip,err:=m.GetFieldOptionInput(field);err!=nil{
+					return "", err
+				}else if fieldSkip{
+					continue
+				}
 				name := field.Name().UpperCamelCase().String()
 				tType := ""
 
@@ -1491,7 +1595,12 @@ func (m *jaalModule) ServiceStructInputFunc(service pgs.Service, initFunctionsNa
 		var field []MsgFields
 
 		for _, ipField := range rpc.Input().Fields() {
-
+			//checks skip_input field option
+			if fieldSkip,err:=m.GetFieldOptionInput(ipField);err!=nil{
+				return "", err
+			}else if fieldSkip{
+				continue
+			}
 			tname := ipField.Name().UpperCamelCase().String()
 
 			//if ipField.Package().ProtoName() != service.Package().ProtoName() {
