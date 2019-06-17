@@ -37,6 +37,7 @@ func (m *jaalModule) generateFileData(target pgs.File) (string, error) {
 	}
 
 	PossibleReqObjects := make(map[string]bool)
+	typeCastMap := make(map[string]string)
 	for _, service := range target.Services() {
 		if err := m.getPossibleReqObjects(service, PossibleReqObjects); err != nil {
 			return "", err
@@ -68,7 +69,7 @@ func (m *jaalModule) generateFileData(target pgs.File) (string, error) {
 	}
 
 	for _, msgs := range target.AllMessages() { // Input Type
-		str, err := m.InputType(msgs, imports, PossibleReqObjects, initFunctionsName)
+		str, err := m.InputType(msgs, imports, PossibleReqObjects, initFunctionsName, typeCastMap)
 		if err != nil {
 			return "", err
 		}
@@ -76,7 +77,7 @@ func (m *jaalModule) generateFileData(target pgs.File) (string, error) {
 	}
 
 	for _, msgs := range target.AllMessages() { // payload type
-		str, err := m.PayloadType(msgs, imports, initFunctionsName)
+		str, err := m.PayloadType(msgs, imports, initFunctionsName, typeCastMap)
 		if err != nil {
 			return "", err
 		}
@@ -124,6 +125,12 @@ func (m *jaalModule) generateFileData(target pgs.File) (string, error) {
 	}
 
 	if str, err := m.InitFunc(initFunctionsName); err != nil { // init
+		return "", err
+	} else {
+		buf.WriteString(str + "\n")
+	}
+
+	if str, err := m.TypeCastType(typeCastMap); err != nil { //type cast
 		return "", err
 	} else {
 		buf.WriteString(str + "\n")

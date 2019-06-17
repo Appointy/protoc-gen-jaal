@@ -42,6 +42,7 @@ type InputMap struct {
 
 type InputClass struct {
 	Name         string
+	Type         string
 	InputObjName string
 	Maps         []InputMap
 	Fields       []MsgFields
@@ -131,6 +132,7 @@ type PayloadMap struct {
 }
 type Payload struct {
 	Name           string
+	Type           string
 	PayloadObjName string
 	UnionObjects   []UnionObjectPayload
 	Maps           []PayloadMap
@@ -199,6 +201,33 @@ func (m *jaalModule) GetSkipOption(message pgs.Message) (bool, error) {
 	return *x.((*bool)), nil
 }
 
+func (m *jaalModule) GetMessageTypeOption(message pgs.Message) (bool, string, error) {
+	//returns message type if present
+
+	opt := message.Descriptor().GetOptions()
+	x, err := proto.GetExtension(opt, pbt.E_Type)
+
+	if opt == nil {
+
+		return false, "", nil
+
+	}
+
+	if err != nil {
+
+		if err == proto.ErrMissingExtension {
+
+			return false, "", nil
+
+		}
+
+		return false, "", err
+
+	}
+
+	return true, *x.((*string)), nil
+}
+
 func (m *jaalModule) OneofInputType(inputData pgs.Message, imports map[string]string, initFunctionsName map[string]bool) (string, error) {
 	/*
 		returns generated template(Input) in for a Oneof type
@@ -210,9 +239,9 @@ func (m *jaalModule) OneofInputType(inputData pgs.Message, imports map[string]st
 
 		for _, fields := range oneof.Fields() {
 			//checks skip_input field option
-			if fieldSkip,err:=m.GetFieldOptionInput(fields);err!=nil{
+			if fieldSkip, err := m.GetFieldOptionInput(fields); err != nil {
 				return "", err
-			}else if fieldSkip{
+			} else if fieldSkip {
 				continue
 			}
 			name := fields.Message().Name().UpperCamelCase().String() + "_" + fields.Name().UpperCamelCase().String()
@@ -280,9 +309,9 @@ func (m *jaalModule) OneofPayloadType(inputData pgs.Message, imports map[string]
 
 		for _, fields := range oneof.Fields() {
 			//checks skip_payload field option
-			if fieldSkip,err:=m.GetFieldOptionPayload(fields);err!=nil{
+			if fieldSkip, err := m.GetFieldOptionPayload(fields); err != nil {
 				return "", err
-			}else if fieldSkip{
+			} else if fieldSkip {
 				continue
 			}
 			name := fields.Message().Name().UpperCamelCase().String() + "_" + fields.Name().UpperCamelCase().String()
@@ -382,7 +411,7 @@ func (m *jaalModule) GetMessageName(message pgs.Message) (string, error) {
 	return "", nil
 }
 
-func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string, PossibleReqObjects map[string]bool, initFunctionsName map[string]bool) (string, error) {
+func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string, PossibleReqObjects map[string]bool, initFunctionsName map[string]bool, typeCastMap map[string]string) (string, error) {
 	// returns generated template(Input) in for a message type
 
 	if skip, err := m.GetSkipOption(inputData); err != nil {
@@ -398,9 +427,9 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 	fullyQualifiedName := inputData.FullyQualifiedName()
 	embeddedMessageParent := ""
 	if inputData.Parent().Name().String() == strings.Split(fullyQualifiedName, ".")[len(strings.Split(fullyQualifiedName, "."))-2] {
-		lenPackage:= len(inputData.Package().ProtoName().String())
-		endlength:=len(inputData.Name().String())
-		embeddedMessageParent = strings.Replace(fullyQualifiedName[lenPackage+2:len(fullyQualifiedName)-endlength],".","_",-1)
+		lenPackage := len(inputData.Package().ProtoName().String())
+		endlength := len(inputData.Name().String())
+		embeddedMessageParent = strings.Replace(fullyQualifiedName[lenPackage+2:len(fullyQualifiedName)-endlength], ".", "_", -1)
 	}
 
 	msg := InputClass{Name: embeddedMessageParent + inputData.Name().UpperCamelCase().String()}
@@ -438,9 +467,9 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 
 		for _, fields := range oneof.Fields() {
 			//checks skip_input field option
-			if fieldSkip,err:=m.GetFieldOptionInput(fields);err!=nil{
+			if fieldSkip, err := m.GetFieldOptionInput(fields); err != nil {
 				return "", err
-			}else if fieldSkip{
+			} else if fieldSkip {
 				continue
 			}
 
@@ -454,9 +483,9 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 		//m.Log(fields.Name(),fields.Type().IsEmbed())
 
 		//checks skip_input field option
-		if fieldSkip,err:=m.GetFieldOptionInput(fields);err!=nil{
+		if fieldSkip, err := m.GetFieldOptionInput(fields); err != nil {
 			return "", err
-		}else if fieldSkip{
+		} else if fieldSkip {
 			continue
 		}
 
@@ -504,18 +533,18 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 
 			}
 
-			if tObj.IsEmbed(){
+			if tObj.IsEmbed() {
 
-				if  tObj.Embed().File().Descriptor().Options != nil && tObj.Embed().File().Descriptor().Options.GoPackage != nil && inputData.Package().ProtoName().String() != tObj.Embed().Package().ProtoName().String() {
+				if tObj.Embed().File().Descriptor().Options != nil && tObj.Embed().File().Descriptor().Options.GoPackage != nil && inputData.Package().ProtoName().String() != tObj.Embed().Package().ProtoName().String() {
 
 					msgArg += m.GetGoPackage(tObj.Embed().File())
 					msgArg += "."
 
-				}else{
-					if strings.Split(tObj.Embed().FullyQualifiedName(), ".")[len(strings.Split(tObj.Embed().FullyQualifiedName(), "."))-2] == tObj.Embed().Parent().Name().String(){
-						tlenPackage:= len(fields.Package().ProtoName().String())
-						tendlength:=len(fields.Name().String())
-						tembeddedMessageParent := strings.Replace(fields.FullyQualifiedName()[tlenPackage+2:len(fields.FullyQualifiedName())-tendlength],".","_",-1)
+				} else {
+					if strings.Split(tObj.Embed().FullyQualifiedName(), ".")[len(strings.Split(tObj.Embed().FullyQualifiedName(), "."))-2] == tObj.Embed().Parent().Name().String() {
+						tlenPackage := len(fields.Package().ProtoName().String())
+						tendlength := len(fields.Name().String())
+						tembeddedMessageParent := strings.Replace(fields.FullyQualifiedName()[tlenPackage+2:len(fields.FullyQualifiedName())-tendlength], ".", "_", -1)
 						msgArg += tembeddedMessageParent
 					}
 				}
@@ -552,9 +581,9 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 					msgArg += "."
 				} else {
 					if strings.Split(fields.FullyQualifiedName(), ".")[len(strings.Split(fields.FullyQualifiedName(), "."))-2] == fields.Type().Embed().Parent().Name().String() {
-						tlenPackage:= len(fields.Package().ProtoName().String())
-						tendlength:=len(fields.Name().String())
-						tembeddedMessageParent := strings.Replace(fields.FullyQualifiedName()[tlenPackage+2:len(fields.FullyQualifiedName())-tendlength],".","_",-1)
+						tlenPackage := len(fields.Package().ProtoName().String())
+						tendlength := len(fields.Name().String())
+						tembeddedMessageParent := strings.Replace(fields.FullyQualifiedName()[tlenPackage+2:len(fields.FullyQualifiedName())-tendlength], ".", "_", -1)
 						msgArg += tembeddedMessageParent
 					}
 				}
@@ -609,19 +638,36 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 	}
 	// adds all maps
 	msg.Maps = maps
-	tmp := getInputTemplate()
+
 	buf := &bytes.Buffer{}
+	tmp := getInputTemplate()
 
-	if err := tmp.Execute(buf, msg); err != nil {
-
+	msg.Type = msg.Name
+	tbuf := &bytes.Buffer{}
+	if err := tmp.Execute(tbuf, msg); err != nil {
 		return "", err
-
+	} else {
+		buf.WriteString(tbuf.String())
 	}
-
+	//if  message type is set
+	if ok, val, err := m.GetMessageTypeOption(inputData); err != nil {
+		return "", err
+	} else if ok {
+		typeCastMap[val] = msg.Name
+		msg.Type = val
+		msg.Name = msg.Type
+		tbuf := &bytes.Buffer{}
+		if err := tmp.Execute(tbuf, msg); err != nil {
+			return "", err
+		} else {
+			initFunctionsName["RegisterInput"+msg.Name] = true
+			buf.WriteString(tbuf.String())
+		}
+	}
 	return buf.String(), nil
 }
 
-func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]string, initFunctionsName map[string]bool) (string, error) {
+func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]string, initFunctionsName map[string]bool, typeCastMap map[string]string) (string, error) {
 	// returns generated template(Payload) in for a message type
 
 	if skip, err := m.GetSkipOption(payloadData); err != nil {
@@ -636,9 +682,9 @@ func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]str
 	fullyQualifiedName := payloadData.FullyQualifiedName()
 	embeddedMessageParent := ""
 	if payloadData.Parent().Name().String() == strings.Split(fullyQualifiedName, ".")[len(strings.Split(fullyQualifiedName, "."))-2] {
-		lenPackage:= len(payloadData.Package().ProtoName().String())
-		endlength:=len(payloadData.Name().String())
-		embeddedMessageParent = strings.Replace(fullyQualifiedName[lenPackage+2:len(fullyQualifiedName)-endlength],".","_",-1)
+		lenPackage := len(payloadData.Package().ProtoName().String())
+		endlength := len(payloadData.Name().String())
+		embeddedMessageParent = strings.Replace(fullyQualifiedName[lenPackage+2:len(fullyQualifiedName)-endlength], ".", "_", -1)
 	}
 	msg := Payload{Name: embeddedMessageParent + payloadData.Name().UpperCamelCase().String()}
 	newName, err := m.GetMessageName(payloadData)
@@ -657,9 +703,9 @@ func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]str
 
 		for _, fields := range oneof.Fields() {
 			//checks skip_payload field option
-			if fieldSkip,err:=m.GetFieldOptionPayload(fields);err!=nil{
+			if fieldSkip, err := m.GetFieldOptionPayload(fields); err != nil {
 				return "", err
-			}else if fieldSkip{
+			} else if fieldSkip {
 				continue
 			}
 			caseName := fields.Message().Name().UpperCamelCase().String() + "_" + fields.Name().UpperCamelCase().String()
@@ -676,9 +722,9 @@ func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]str
 	}
 	for _, fields := range payloadData.NonOneOfFields() {
 		//checks skip_payload field option
-		if fieldSkip,err:=m.GetFieldOptionPayload(fields);err!=nil{
+		if fieldSkip, err := m.GetFieldOptionPayload(fields); err != nil {
 			return "", err
-		}else if fieldSkip{
+		} else if fieldSkip {
 			continue
 		}
 
@@ -712,17 +758,17 @@ func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]str
 
 			}
 
-			if tObj.IsEmbed(){
+			if tObj.IsEmbed() {
 
-				if tObj.Embed().File().Descriptor().Options != nil && tObj.Embed().File().Descriptor().Options.GoPackage != nil  && payloadData.Package().ProtoName().String() != tObj.Embed().Package().ProtoName().String() {
+				if tObj.Embed().File().Descriptor().Options != nil && tObj.Embed().File().Descriptor().Options.GoPackage != nil && payloadData.Package().ProtoName().String() != tObj.Embed().Package().ProtoName().String() {
 
 					msgArg += m.GetGoPackage(tObj.Embed().File())
 					msgArg += "."
-				}else{
-					if strings.Split(tObj.Embed().FullyQualifiedName(), ".")[len(strings.Split(tObj.Embed().FullyQualifiedName(), "."))-2] == tObj.Embed().Parent().Name().String(){
-						tlenPackage:= len(fields.Package().ProtoName().String())
-						tendlength:=len(fields.Name().String())
-						tembeddedMessageParent := strings.Replace(fields.FullyQualifiedName()[tlenPackage+2:len(fields.FullyQualifiedName())-tendlength],".","_",-1)
+				} else {
+					if strings.Split(tObj.Embed().FullyQualifiedName(), ".")[len(strings.Split(tObj.Embed().FullyQualifiedName(), "."))-2] == tObj.Embed().Parent().Name().String() {
+						tlenPackage := len(fields.Package().ProtoName().String())
+						tendlength := len(fields.Name().String())
+						tembeddedMessageParent := strings.Replace(fields.FullyQualifiedName()[tlenPackage+2:len(fields.FullyQualifiedName())-tendlength], ".", "_", -1)
 						msgArg += tembeddedMessageParent
 					}
 				}
@@ -752,9 +798,9 @@ func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]str
 					msgArg += "."
 				} else {
 					if strings.Split(fields.FullyQualifiedName(), ".")[len(strings.Split(fields.FullyQualifiedName(), "."))-2] == fields.Type().Embed().Parent().Name().String() {
-						tlenPackage:= len(fields.Package().ProtoName().String())
-						tendlength:=len(fields.Name().String())
-						tembeddedMessageParent := strings.Replace(fields.FullyQualifiedName()[tlenPackage+2:len(fields.FullyQualifiedName())-tendlength],".","_",-1)
+						tlenPackage := len(fields.Package().ProtoName().String())
+						tendlength := len(fields.Name().String())
+						tembeddedMessageParent := strings.Replace(fields.FullyQualifiedName()[tlenPackage+2:len(fields.FullyQualifiedName())-tendlength], ".", "_", -1)
 						msgArg += tembeddedMessageParent
 					}
 				}
@@ -806,15 +852,31 @@ func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]str
 	// adds all maps
 	msg.Maps = maps
 
-	tmp := getPayloadTemplate()
 	buf := &bytes.Buffer{}
+	tmp := getPayloadTemplate()
 
-	if err := tmp.Execute(buf, msg); err != nil {
-
+	msg.Type = msg.Name
+	tbuf := &bytes.Buffer{}
+	if err := tmp.Execute(tbuf, msg); err != nil {
 		return "", err
-
+	} else {
+		buf.WriteString(tbuf.String())
 	}
-
+	//if  message type is set
+	if ok, val, err := m.GetMessageTypeOption(payloadData); err != nil {
+		return "", err
+	} else if ok {
+		typeCastMap[val] = msg.Name
+		msg.Type = val
+		msg.Name = msg.Type
+		tbuf := &bytes.Buffer{}
+		if err := tmp.Execute(tbuf, msg); err != nil {
+			return "", err
+		} else {
+			initFunctionsName["RegisterPayload"+msg.Name] = true
+			buf.WriteString(tbuf.String())
+		}
+	}
 	return buf.String(), nil
 }
 
@@ -1011,9 +1073,9 @@ func (m *jaalModule) ServiceInput(service pgs.Service) (string, error) {
 				var fields []Fields
 				for _, field := range oneOf.Fields() {
 					//checks skip_input field option
-					if fieldSkip,err:=m.GetFieldOptionInput(field);err!=nil{
+					if fieldSkip, err := m.GetFieldOptionInput(field); err != nil {
 						return "", err
-					}else if fieldSkip{
+					} else if fieldSkip {
 						continue
 					}
 					goPkg := m.GetGoPackageOfFiles(service.File(), field.File())
@@ -1029,9 +1091,9 @@ func (m *jaalModule) ServiceInput(service pgs.Service) (string, error) {
 			}
 			for _, field := range rpc.Input().Fields() {
 				//checks skip_input field option
-				if fieldSkip,err:=m.GetFieldOptionInput(field);err!=nil{
+				if fieldSkip, err := m.GetFieldOptionInput(field); err != nil {
 					return "", err
-				}else if fieldSkip{
+				} else if fieldSkip {
 					continue
 				}
 				name := field.Name().UpperCamelCase().String()
@@ -1059,9 +1121,9 @@ func (m *jaalModule) ServiceInput(service pgs.Service) (string, error) {
 							tType += m.GetGoPackage(tObj.Embed().File())
 							tType += "."
 
-						}else{
-							if strings.Split(tObj.Embed().FullyQualifiedName(), ".")[len(strings.Split(tObj.Embed().FullyQualifiedName(), "."))-2] == tObj.Embed().Parent().Name().String(){
-								tType+= (tObj.Embed().Parent().Name().String()+"_")
+						} else {
+							if strings.Split(tObj.Embed().FullyQualifiedName(), ".")[len(strings.Split(tObj.Embed().FullyQualifiedName(), "."))-2] == tObj.Embed().Parent().Name().String() {
+								tType += (tObj.Embed().Parent().Name().String() + "_")
 							}
 						}
 
@@ -1332,9 +1394,9 @@ func (m *jaalModule) ServiceStructInput(service pgs.Service) (string, error) {
 
 						ttype += m.GetGoPackage(tObj.Embed().File())
 						ttype += "."
-					}else{
-						if strings.Split(tObj.Embed().FullyQualifiedName(), ".")[len(strings.Split(tObj.Embed().FullyQualifiedName(), "."))-2] == tObj.Embed().Parent().Name().String(){
-							ttype+= (tObj.Embed().Parent().Name().String()+"_")
+					} else {
+						if strings.Split(tObj.Embed().FullyQualifiedName(), ".")[len(strings.Split(tObj.Embed().FullyQualifiedName(), "."))-2] == tObj.Embed().Parent().Name().String() {
+							ttype += (tObj.Embed().Parent().Name().String() + "_")
 						}
 					}
 				}
@@ -1532,6 +1594,15 @@ func (m *jaalModule) InitFunc(initFunctionsName map[string]bool) (string, error)
 	return buf.String(), nil
 }
 
+func (m *jaalModule) TypeCastType(typeCastMap map[string]string) (string, error) {
+	str:=""
+	for k,v := range typeCastMap{
+		str+= ("type "+k+" "+v)
+		str+="\n"
+	}
+	return str,nil
+}
+
 func (m *jaalModule) GetGoPackage(target pgs.File) string {
 	//returns go package for a file
 
@@ -1596,9 +1667,9 @@ func (m *jaalModule) ServiceStructInputFunc(service pgs.Service, initFunctionsNa
 
 		for _, ipField := range rpc.Input().Fields() {
 			//checks skip_input field option
-			if fieldSkip,err:=m.GetFieldOptionInput(ipField);err!=nil{
+			if fieldSkip, err := m.GetFieldOptionInput(ipField); err != nil {
 				return "", err
-			}else if fieldSkip{
+			} else if fieldSkip {
 				continue
 			}
 			tname := ipField.Name().UpperCamelCase().String()
@@ -1638,9 +1709,9 @@ func (m *jaalModule) ServiceStructInputFunc(service pgs.Service, initFunctionsNa
 						funcPara += m.GetGoPackage(tObj.Embed().File())
 						funcPara += "."
 
-					}else{
-						if strings.Split(tObj.Embed().FullyQualifiedName(), ".")[len(strings.Split(tObj.Embed().FullyQualifiedName(), "."))-2] == tObj.Embed().Parent().Name().String(){
-							funcPara+= (tObj.Embed().Parent().Name().String()+"_")
+					} else {
+						if strings.Split(tObj.Embed().FullyQualifiedName(), ".")[len(strings.Split(tObj.Embed().FullyQualifiedName(), "."))-2] == tObj.Embed().Parent().Name().String() {
+							funcPara += (tObj.Embed().Parent().Name().String() + "_")
 						}
 					}
 

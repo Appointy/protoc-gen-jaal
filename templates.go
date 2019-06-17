@@ -48,7 +48,7 @@ func getInputTemplate() *template.Template {
 
 	tmpl := `
 func RegisterInput{{.Name}}(schema *schemabuilder.Schema) {
-	input := schema.InputObject("{{.InputObjName}}", {{.Name}}{})
+	input := schema.InputObject("{{.InputObjName}}", {{.Type}}{})
 	{{$name:=.Name}}
 	{{range .Maps}}
 		input.FieldFunc("{{.FieldName}}", func(target *{{$name}}, source *schemabuilder.Map) error {
