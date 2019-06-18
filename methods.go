@@ -40,11 +40,17 @@ type InputMap struct {
 	Value      string
 }
 
+type Duration struct {
+	FieldName string
+	Name      string
+}
+
 type InputClass struct {
 	Name         string
 	Type         string
 	InputObjName string
 	Maps         []InputMap
+	Durations    []Duration
 	Fields       []MsgFields
 }
 
@@ -136,6 +142,7 @@ type Payload struct {
 	PayloadObjName string
 	UnionObjects   []UnionObjectPayload
 	Maps           []PayloadMap
+	Durations      []Duration
 	Fields         []PayloadFields
 }
 
@@ -273,6 +280,10 @@ func (m *jaalModule) OneofInputType(inputData pgs.Message, imports map[string]st
 			fieldFuncSecondParaFuncPara = goPkg + fieldFuncSecondParaFuncPara
 			if fieldFuncSecondParaFuncPara == "field_mask.FieldMask" {
 				targetVal = "gtypes.ModifyFieldMask(source)"
+			}else if strings.HasSuffix(fieldFuncSecondParaFuncPara,"duration.Duration"){
+				fieldFuncSecondParaFuncPara = fieldFuncSecondParaFuncPara[:len(fieldFuncSecondParaFuncPara)-17]
+				fieldFuncSecondParaFuncPara+= "schemabuilder.Duration"
+				targetVal = "(*duration.Duration)(" + targetVal + ")"
 			}
 			oneOfArr = append(oneOfArr, Oneof{TargetVal: targetVal, Name: name, SchemaObjectPara: schemaObjectPara, FieldFuncPara: fieldFuncPara, TargetName: targetName, FieldFuncSecondParaFuncPara: fieldFuncSecondParaFuncPara})
 		}
@@ -341,7 +352,7 @@ func (m *jaalModule) OneofPayloadType(inputData pgs.Message, imports map[string]
 			fieldFuncReturn := fields.Name().UpperCamelCase().String()
 			if fieldFuncSecondFuncReturn == "*field_mask.FieldMask" {
 				fieldFuncReturn = "gtypes.ModifyFieldMask(in." + fieldFuncReturn + ")"
-			} else {
+			}else {
 				fieldFuncReturn = "in." + fieldFuncReturn
 			}
 			oneOfArr = append(oneOfArr, OneofPayload{Name: name, SchemaObjectPara: schemaObjectPara, FieldFuncPara: fieldFuncPara, FieldFuncReturn: fieldFuncReturn, FieldFuncSecondFuncReturn: fieldFuncSecondFuncReturn})
@@ -630,6 +641,18 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 			msgArg += "schemabuilder.Timestamp"
 
 			tVal = "(*timestamp.Timestamp)(" + tVal + ")"
+		} else if strings.HasSuffix(msgArg, "duration.Duration") {
+			if fields.Type().IsRepeated() {
+				msgArg = msgArg[:len(msgArg)-17]
+				msgArg += "schemabuilder.Duration"
+				msg.Durations = append(msg.Durations, Duration{FieldName: fields.Name().LowerCamelCase().String(), Name: fields.Name().UpperCamelCase().String()})
+				continue
+			} else {
+				msgArg = msgArg[:len(msgArg)-17]
+				msgArg += "schemabuilder.Duration"
+				tVal = "(*duration.Duration)(" + tVal + ")"
+			}
+
 		} else if strings.HasSuffix(msgArg, "field_mask.FieldMask") {
 			tVal = "gtypes.ModifyFieldMask(" + tVal + ")"
 		}
@@ -638,7 +661,6 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 	}
 	// adds all maps
 	msg.Maps = maps
-
 	buf := &bytes.Buffer{}
 	tmp := getInputTemplate()
 
@@ -841,6 +863,17 @@ func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]str
 			msgArg += "schemabuilder.Timestamp"
 
 			tVal = "(*schemabuilder.Timestamp)(" + tVal + ")"
+		} else if strings.HasSuffix(msgArg, "duration.Duration") {
+			if fields.Type().IsRepeated() {
+				msgArg = msgArg[:len(msgArg)-17]
+				msgArg += "schemabuilder.Duration"
+				msg.Durations = append(msg.Durations, Duration{FieldName: fields.Name().LowerCamelCase().String(), Name: fields.Name().UpperCamelCase().String()})
+				continue
+			} else {
+				msgArg = msgArg[:len(msgArg)-17]
+				msgArg += "schemabuilder.Duration"
+				tVal = "(*schemabuilder.Duration)(" + tVal + ")"
+			}
 		} else if strings.HasSuffix(msgArg, "field_mask.FieldMask") {
 			tVal = "gtypes.ModifyFieldMask(" + tVal + ")"
 		}
@@ -901,6 +934,7 @@ type Query struct {
 	ReturnFunc         string
 	MapsData           []MapData
 	Oneofs             []OneOfMutation
+	Durations          []Duration
 }
 
 type Mutation struct {
@@ -1069,6 +1103,7 @@ func (m *jaalModule) ServiceInput(service pgs.Service) (string, error) {
 			var returnType []Fields
 			var mapsData []MapData
 			var oneOfs []OneOfMutation
+			var duration []Duration
 			for _, oneOf := range rpc.Input().OneOfs() {
 				var fields []Fields
 				for _, field := range oneOf.Fields() {
@@ -1130,6 +1165,11 @@ func (m *jaalModule) ServiceInput(service pgs.Service) (string, error) {
 					}
 
 					tType += m.fieldElementType(tObj)
+					if strings.HasSuffix(tType, "duration.Duration") {
+						tType = tType[:len(tType)-17]
+						tType += "schemabuilder.Duration"
+						duration=append(duration,Duration{Name:field.Name().UpperCamelCase().String()})
+					}
 
 				} else if field.Type().IsMap() {
 					tType = "*schemabuilder.Map"
@@ -1212,11 +1252,14 @@ func (m *jaalModule) ServiceInput(service pgs.Service) (string, error) {
 				} else if tType == "*timestamp.Timestamp" {
 					tType = "*schemabuilder.Timestamp"
 					returnType = append(returnType, Fields{Name: name, Type: "(*timestamp.Timestamp)" + "(args." + name + ")"})
+				} else if tType == "*duration.Duration" {
+					tType = "*schemabuilder.Duration"
+					returnType = append(returnType, Fields{Name: name, Type: "(*duration.Duration)" + "(args." + name + ")"})
 				} else if tType == "*field_mask.FieldMask" {
 					returnType = append(returnType, Fields{Name: name, Type: "gtypes.ModifyFieldMask" + "(args." + name + ")"})
 				} else if field.Type().IsMap() {
 					returnType = append(returnType, Fields{Name: name, Type: field.Name().LowerCamelCase().String() + "Map"})
-				} else {
+				} else if !strings.HasSuffix(tType,"schemabuilder.Duration") {
 					returnType = append(returnType, Fields{Name: name, Type: "args." + name})
 				}
 				inType = append(inType, Fields{Name: name, Type: tType})
@@ -1227,7 +1270,7 @@ func (m *jaalModule) ServiceInput(service pgs.Service) (string, error) {
 				inputName += "."
 			}
 			inputName += rpc.Input().Name().UpperCamelCase().String()
-			varQuery = append(varQuery, Query{Oneofs: oneOfs, InputName: inputName, MapsData: mapsData, ReturnType: returnType, FieldName: fieldName, InType: inType, FirstReturnArgType: firstReturnArgType, ReturnFunc: returnFunc})
+			varQuery = append(varQuery, Query{Durations:duration,Oneofs: oneOfs, InputName: inputName, MapsData: mapsData, ReturnType: returnType, FieldName: fieldName, InType: inType, FirstReturnArgType: firstReturnArgType, ReturnFunc: returnFunc})
 
 		} else if option.GetQuery() == "" {
 
@@ -1595,12 +1638,12 @@ func (m *jaalModule) InitFunc(initFunctionsName map[string]bool) (string, error)
 }
 
 func (m *jaalModule) TypeCastType(typeCastMap map[string]string) (string, error) {
-	str:=""
-	for k,v := range typeCastMap{
-		str+= ("type "+k+" "+v)
-		str+="\n"
+	str := ""
+	for k, v := range typeCastMap {
+		str += ("type " + k + " " + v)
+		str += "\n"
 	}
-	return str,nil
+	return str, nil
 }
 
 func (m *jaalModule) GetGoPackage(target pgs.File) string {
@@ -1642,6 +1685,7 @@ func (m *jaalModule) ServiceStructInputFunc(service pgs.Service, initFunctionsNa
 
 	for _, rpc := range service.Methods() {
 		var maps []InputMap
+		var durations []Duration
 		flag, option, err := m.GetOption(rpc)
 
 		if err != nil {
@@ -1779,6 +1823,16 @@ func (m *jaalModule) ServiceStructInputFunc(service pgs.Service, initFunctionsNa
 			if strings.HasSuffix(funcPara, "*timestamp.Timestamp") {
 				funcPara = funcPara[:len(funcPara)-19] + "schemabuilder.Timestamp"
 				tval = "(*timestamp.Timestamp)(source)"
+			}else if strings.HasSuffix(funcPara, "duration.Duration") {
+				if ipField.Type().IsRepeated() {
+					durations = append(durations, Duration{Name: ipField.Name().UpperCamelCase().String()})
+					continue
+				} else {
+					funcPara = funcPara[:len(funcPara)-17]
+					funcPara += "schemabuilder.Duration"
+					tval = "(*duration.Duration)(" + tval + ")"
+				}
+
 			} else if strings.HasSuffix(funcPara, "*field_mask.FieldMask") {
 				tval = "gtypes.ModifyFieldMask(source)"
 			}
@@ -1787,7 +1841,7 @@ func (m *jaalModule) ServiceStructInputFunc(service pgs.Service, initFunctionsNa
 		}
 
 		initFunctionsName["RegisterInput"+rpc.Name().UpperCamelCase().String()+"Input"] = true
-		inputServiceStructFunc = append(inputServiceStructFunc, InputClass{Name: rpc.Name().UpperCamelCase().String(), Fields: field, Maps: maps})
+		inputServiceStructFunc = append(inputServiceStructFunc, InputClass{Name: rpc.Name().UpperCamelCase().String(), Fields: field, Maps: maps,Durations:durations})
 	}
 
 	tmp := getServiceStructInputFuncTemplate()
