@@ -284,6 +284,10 @@ func (m *jaalModule) OneofInputType(inputData pgs.Message, imports map[string]st
 				fieldFuncSecondParaFuncPara = fieldFuncSecondParaFuncPara[:len(fieldFuncSecondParaFuncPara)-17]
 				fieldFuncSecondParaFuncPara+= "schemabuilder.Duration"
 				targetVal = "(*duration.Duration)(" + targetVal + ")"
+			}else if strings.HasSuffix(fieldFuncSecondParaFuncPara,"timestamp.Timestamp"){
+				fieldFuncSecondParaFuncPara = fieldFuncSecondParaFuncPara[:len(fieldFuncSecondParaFuncPara)-17]
+				fieldFuncSecondParaFuncPara+= "schemabuilder.Timestamp"
+				targetVal = "(*duration.Timestamp)(" + targetVal + ")"
 			}
 			oneOfArr = append(oneOfArr, Oneof{TargetVal: targetVal, Name: name, SchemaObjectPara: schemaObjectPara, FieldFuncPara: fieldFuncPara, TargetName: targetName, FieldFuncSecondParaFuncPara: fieldFuncSecondParaFuncPara})
 		}
