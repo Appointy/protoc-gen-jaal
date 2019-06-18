@@ -48,7 +48,7 @@ func getInputTemplate() *template.Template {
 
 	tmpl := `
 func RegisterInput{{.Name}}(schema *schemabuilder.Schema) {
-	input := schema.InputObject("{{.InputObjName}}", {{.Name}}{})
+	input := schema.InputObject("{{.InputObjName}}", {{.Type}}{})
 	{{$name:=.Name}}
 	{{range .Maps}}
 		input.FieldFunc("{{.FieldName}}", func(target *{{$name}}, source *schemabuilder.Map) error {
@@ -70,6 +70,14 @@ func RegisterInput{{.Name}}(schema *schemabuilder.Schema) {
 	{{range .Fields}}
 	input.FieldFunc("{{.FieldName}}", func(target *{{$name}}, source {{.FuncPara}}) {
 		target.{{.TargetName}} = {{.TargetVal}}
+	}){{end}}
+	{{range .Durations}}
+	input.FieldFunc("{{.FieldName}}", func(target *{{$name}}, source []*schemabuilder.Duration) {
+		array := make([]*duration.Duration, 0 ,len(source))
+		for _, s:= range source{
+			array = append(array, (*duration.Duration)(s))
+		}
+		target.{{.Name}} = array
 	}){{end}}
 }
 `
@@ -113,6 +121,14 @@ func RegisterPayload{{.Name}}(schema *schemabuilder.Schema) {
 	payload.FieldFunc("{{.FieldName}}", func(ctx context.Context, in *{{$name}}) {{.FuncPara}} {
 		return {{.TargetVal}}
 	}){{end}}
+	{{range .Durations}}
+	payload.FieldFunc("{{.FieldName}}", func(ctx context.Context, in *{{$name}}) []*schemabuilder.Duration {
+		array := make([]*schemabuilder.Duration, 0, len(in.{{.Name}}))
+		for _, d := range in.{{.Name}}{
+			array = append(array, (*schemabuilder.Duration)(d))
+		}
+		return array
+	}){{end}}
 }
 `
 
@@ -148,6 +164,13 @@ func Register{{.Name}}Operations(schema *schemabuilder.Schema, client {{.Name}}C
 			{{range .ReturnType}}
 			{{.Name}}: {{.Type}},{{end}}
 			}
+			{{range .Durations}}
+			array{{.Name}} := make([]*duration.Duration, 0 ,len(args.{{.Name}}))
+			for _, s:= range args.{{.Name}}{
+				array{{.Name}} = append(array{{.Name}}, (*duration.Duration)(s))
+			}
+			request.{{.Name}}=array{{.Name}}
+			{{end}}
 			{{range .Oneofs}}
 			{{$oneOfNameQ:= .Name}}
 				{{range .Fields}}
@@ -323,6 +346,14 @@ func RegisterInput{{.Name}}Input(schema *schemabuilder.Schema) {
 			target{{"."}}{{.TargetName}} = {{.TargetVal}}
 		})
 	{{end}}
+	{{range .Durations}}
+	input.FieldFunc("{{.Name}}", func(target *{{$name}}Input, source []*schemabuilder.Duration) {
+		array := make([]*duration.Duration, 0 ,len(source))
+		for _, s:= range source{
+			array = append(array, (*duration.Duration)(s))
+		}
+		target.{{.Name}} = array
+	}){{end}}
 	input.FieldFunc("clientMutationId", func(target *{{.Name}}Input, source *string) {
 		target.ClientMutationId = *source
 	})
