@@ -79,6 +79,14 @@ func RegisterInput{{.Name}}(schema *schemabuilder.Schema) {
 		}
 		target.{{.Name}} = array
 	}){{end}}
+	{{range .Ids}}
+	input.FieldFunc("{{.FieldName}}", func(target *{{$name}}, source []schemabuilder.ID) {
+		array:= make([]string,0,len(source))
+		for _, s:= range source{
+			array = append(array, (s.Value))
+		}
+		target.{{.Name}}=array
+	}){{end}}
 }
 `
 
@@ -129,6 +137,14 @@ func RegisterPayload{{.Name}}(schema *schemabuilder.Schema) {
 		}
 		return array
 	}){{end}}
+	{{range .Ids}}
+	payload.FieldFunc("{{.FieldName}}", func(ctx context.Context, in *Class) []schemabuilder.ID {
+		array := make([]schemabuilder.ID, 0, len(in.{{.Name}}))
+		for _, d := range in.{{.Name}}{
+			array = append(array, schemabuilder.ID{Value:d})
+		}
+		return array
+	}){{end}}
 }
 `
 
@@ -170,6 +186,13 @@ func Register{{.Name}}Operations(schema *schemabuilder.Schema, client {{.Name}}C
 				array{{.Name}} = append(array{{.Name}}, (*duration.Duration)(s))
 			}
 			request.{{.Name}}=array{{.Name}}
+			{{end}}
+			{{range .Ids}}
+			array{{.Name}} := make([]string,0,len(args.{{.Name}} ))
+			for _,s := range args.{{.Name}} {
+				array{{.Name}}  = append(array{{.Name}} ,s.Value)
+			}
+			request.Id=array{{.Name}} 
 			{{end}}
 			{{range .Oneofs}}
 			{{$oneOfNameQ:= .Name}}
@@ -353,6 +376,14 @@ func RegisterInput{{.Name}}Input(schema *schemabuilder.Schema) {
 			array = append(array, (*duration.Duration)(s))
 		}
 		target.{{.Name}} = array
+	}){{end}}
+	{{range .Ids}}
+	input.FieldFunc("{{.FieldName}}", func(target *{{$name}}Input, source []schemabuilder.ID) {
+		array:= make([]string,0,len(source))
+		for _, s:= range source{
+			array = append(array, (s.Value))
+		}
+		target.{{.Name}}=array
 	}){{end}}
 	input.FieldFunc("clientMutationId", func(target *{{.Name}}Input, source *string) {
 		target.ClientMutationId = *source
