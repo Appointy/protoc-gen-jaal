@@ -6,7 +6,7 @@ protoc-gen-jaal is a protoc plugin which is used to generate jaal APIs. The serv
 
 Let's get started with a quick example.
 
-```Protocol Buffer
+```protobuf
 syntax = "proto3";
 
 package customer;
@@ -21,14 +21,14 @@ service Customers {
         option (graphql.schema) = {
             mutation : "createCustomer"
         };
-    }
+    };
 
     // GetCustomer returns the customer by its unique user id.
     rpc GetCustomer (GetCustomerRequest) returns (Customer) {
         option (graphql.schema) = {
             query : "customer"
         };
-    }
+    };
 }
 
 message CreateCustomerRequest {
@@ -108,17 +108,24 @@ protoc-gen-jaal generates the code to register each message as input and payload
 
 The behaviour of protoc-gen-jaal can be modified using the following options:
 
-**File Option**
-*file_skip : This option is used to skip the generation of gq file.
+### File Option
 
-**Method Option**
-*schema : This option is used to tag an rpc as query or mutation.
+* file_skip : This option is used to skip the generation of gq file.
 
-**Message Options**
-*skip : This option is used to skip the registration of a message on the graphql schema.
-*name : This option is used to change default name of message on graphql schema.
-*type : This option is used to change go type of the message.
+### Method Option
 
-**Field Options**
-*input_skip : This option is used to skip the registration of the field on input object.
-*payload_skip : This option is used to skip the registration of the field on payload object.
+* schema : This option is used to tag an rpc as query or mutation.
+
+### Message Options
+
+* skip : This option is used to skip the registration of a message on the graphql schema.
+
+* name : This option is used to change default name of message on graphql schema.
+
+* type : This option is used to change go type of the message.
+
+### Field Options
+
+* input_skip : This option is used to skip the registration of the field on input object.
+
+* payload_skip : This option is used to skip the registration of the field on payload object.
