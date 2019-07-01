@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+
 	"github.com/golang/protobuf/proto"
 	pgs "github.com/lyft/protoc-gen-star"
 	pgsgo "github.com/lyft/protoc-gen-star/lang/go"
@@ -18,7 +19,7 @@ func (m *jaalModule) InitContext(c pgs.BuildContext) {
 	m.Context = pgsgo.InitContext(c.Parameters())
 }
 
-func (m *jaalModule) Name() string { return "graphql" }
+func (m *jaalModule) Name() string { return "jaal" }
 func (m *jaalModule) CheckSkipFile(target pgs.File) (bool, error) {
 	// checks file_skip option
 	opt := target.Descriptor().GetOptions()

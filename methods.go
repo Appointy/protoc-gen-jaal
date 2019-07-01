@@ -1938,7 +1938,7 @@ func (m *jaalModule) IdOption(field pgs.Field) (bool, error) {
 	opt := field.Descriptor().GetOptions()
 	if opt != nil {
 		x, err := proto.GetExtension(opt, pbt.E_Id)
-		if err != proto.ErrMissingExtension {
+		if err == proto.ErrMissingExtension {
 			return false, err
 		}
 
