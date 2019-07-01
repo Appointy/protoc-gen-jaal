@@ -102,7 +102,7 @@ protoc \
   customer.proto
 ```
 
-protoc-gen-jaal generates the code to register each message as input and payload. The payload is registered with the name of message. The input is registered with the name of message suffixed with "Input".
+protoc-gen-jaal generates the code to register each message as input and payload. The payload is registered with the name of message. The input is registered with the name of message suffixed with "Input". protoc-gen-jaal implicitly registers field named id as graphQL ID.
 
 ## Available Options
 
