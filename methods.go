@@ -433,7 +433,7 @@ func (m *jaalModule) GetMessageName(message pgs.Message) (string, error) {
 			return "", err
 		}
 		if x != nil {
-			return *x.(*string), nil;
+			return *x.(*string), nil
 		}
 	}
 	return "", nil
@@ -1562,7 +1562,7 @@ type PayloadServiceStruct struct {
 	ReturnType string
 }
 
-func (m *jaalModule) GetGoPackageOfFiles(file1 pgs.File, file2 pgs.File) (string) {
+func (m *jaalModule) GetGoPackageOfFiles(file1 pgs.File, file2 pgs.File) string {
 	/*
 		If file2 have different package than file1 then package of file2 is  returned
 		else empty string is returned
@@ -1627,32 +1627,22 @@ func (m *jaalModule) getPossibleReqObjects(service pgs.Service, PossibleReqObjec
 	//saves all rpc inputs where rpcs are query type (used to append Input and remove Req), in PossibleReqObjects map
 
 	for _, rpc := range service.Methods() {
-
 		flag, option, err := m.GetOption(rpc)
-
 		if err != nil {
-
 			m.Log("Error", err)
 			os.Exit(0)
-
 		}
 
 		if flag == false {
-
 			continue
-
 		}
 
 		if option.GetMutation() == "" {
-
 			continue
-
 		}
 
 		if option.GetQuery() != "" {
-
 			PossibleReqObjects[rpc.Input().Name().String()] = true
-
 		}
 	}
 
@@ -1666,9 +1656,7 @@ func (m *jaalModule) InitFunc(initFunctionsName map[string]bool) (string, error)
 	buf := &bytes.Buffer{}
 
 	if err := tmp.Execute(buf, initFunctionsName); err != nil {
-
 		return "", err
-
 	}
 
 	return buf.String(), nil
@@ -1727,22 +1715,16 @@ func (m *jaalModule) ServiceStructInputFunc(service pgs.Service, initFunctionsNa
 		flag, option, err := m.GetOption(rpc)
 
 		if err != nil {
-
 			m.Log("Error", err)
 			os.Exit(0)
-
 		}
 
 		if flag == false {
-
 			continue
-
 		}
 
 		if option.GetMutation() == "" {
-
 			continue
-
 		}
 
 		var field []MsgFields
@@ -1756,12 +1738,6 @@ func (m *jaalModule) ServiceStructInputFunc(service pgs.Service, initFunctionsNa
 			}
 			tname := ipField.Name().UpperCamelCase().String()
 
-			//if ipField.Package().ProtoName() != service.Package().ProtoName() {
-			//
-			//	tname = m.GetGoPackage(ipField.File()) + "." + ipField.Name().UpperCamelCase().String()
-			//
-			//}
-
 			fName := ipField.Name().LowerCamelCase().String()
 			tval := ""
 			funcPara := ""
@@ -1770,7 +1746,7 @@ func (m *jaalModule) ServiceStructInputFunc(service pgs.Service, initFunctionsNa
 				tval = "source.Value"
 				if ipField.Type().IsRepeated() {
 					funcPara = "[]*schemabuilder.ID"
-					rIds=append(rIds,Id{Name:ipField.Name().UpperCamelCase().String(),FieldName:ipField.Name().LowerCamelCase().String()})
+					rIds = append(rIds, Id{Name: ipField.Name().UpperCamelCase().String(), FieldName: ipField.Name().LowerCamelCase().String()})
 					continue
 				}
 			} else if ipField.InOneOf() {
@@ -1793,7 +1769,6 @@ func (m *jaalModule) ServiceStructInputFunc(service pgs.Service, initFunctionsNa
 				}
 
 				if tObj.IsEmbed() && tObj.Embed().File().Descriptor().Options != nil && tObj.Embed().File().Descriptor().Options.GoPackage != nil {
-
 					if service.Package().ProtoName().String() != tObj.Embed().Package().ProtoName().String() {
 
 						funcPara += m.GetGoPackage(tObj.Embed().File())
@@ -1829,11 +1804,9 @@ func (m *jaalModule) ServiceStructInputFunc(service pgs.Service, initFunctionsNa
 				continue
 			} else {
 				if ipField.Descriptor().GetType().String() == "TYPE_MESSAGE" {
-
 					tval = "source"
 
 				} else {
-
 					tval = "*source"
 
 				}
@@ -1841,16 +1814,12 @@ func (m *jaalModule) ServiceStructInputFunc(service pgs.Service, initFunctionsNa
 				funcPara = m.RPCFieldType(ipField)
 
 				if funcPara[0] == '*' {
-
 					funcPara = funcPara[1:len(funcPara)]
-
 				}
 
 				goPkg := ""
 				if ipField.Type().IsEmbed() {
-
 					if ipField.Type().Embed().File().Descriptor().Options != nil && ipField.Type().Embed().File().Descriptor().Options.GoPackage != nil && service.Package().ProtoName().String() != ipField.Type().Embed().Package().ProtoName().String() {
-
 						goPkg = m.GetGoPackage(ipField.Type().Embed().File()) + "."
 					} else {
 						// message is embedded inside a message then it's gopkg is it's parent message
@@ -1896,9 +1865,7 @@ func (m *jaalModule) ServiceStructInputFunc(service pgs.Service, initFunctionsNa
 	buf := &bytes.Buffer{}
 
 	if err := tmp.Execute(buf, inputServiceStructFunc); err != nil {
-
 		return "", err
-
 	}
 
 	return buf.String(), nil
@@ -1906,13 +1873,10 @@ func (m *jaalModule) ServiceStructInputFunc(service pgs.Service, initFunctionsNa
 
 func (m *jaalModule) ServiceStructPayloadFunc(service pgs.Service, initFunctionsName map[string]bool) (string, error) {
 	//returns template of service payload struct registered methods for a service
-
 	var payloadService []PayloadServiceStruct
 
 	for _, rpc := range service.Methods() {
-
 		flag, option, err := m.GetOption(rpc)
-
 		if err != nil {
 
 			m.Log("Error", err)
@@ -1921,15 +1885,11 @@ func (m *jaalModule) ServiceStructPayloadFunc(service pgs.Service, initFunctions
 		}
 
 		if flag == false {
-
 			continue
-
 		}
 
 		if option.GetMutation() == "" {
-
 			continue
-
 		}
 
 		initFunctionsName["RegisterPayload"+rpc.Name().UpperCamelCase().String()+"Payload"] = true
@@ -1945,9 +1905,7 @@ func (m *jaalModule) ServiceStructPayloadFunc(service pgs.Service, initFunctions
 	buf := &bytes.Buffer{}
 
 	if err := tmp.Execute(buf, payloadService); err != nil {
-
 		return "", err
-
 	}
 
 	return buf.String(), nil

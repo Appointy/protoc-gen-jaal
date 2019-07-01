@@ -26,7 +26,6 @@ func (m *jaalModule) generateFileData(target pgs.File) (string, error) {
 	buf.WriteString("import \"go.appointy.com/jaal/schemabuilder\";")
 
 	for _, enums := range target.AllEnums() { //enum type
-
 		str, err := m.EnumType(enums, imports, initFunctionsName)
 
 		if err != nil {
