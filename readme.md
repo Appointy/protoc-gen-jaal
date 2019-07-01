@@ -122,10 +122,12 @@ The behaviour of protoc-gen-jaal can be modified using the following options:
 
 * name : This option is used to change default name of message on graphql schema.
 
-* type : This option is used to change go type of the message.
+* type : This option is used to change go type of the message in the gq file.
 
 ### Field Options
 
 * input_skip : This option is used to skip the registration of the field on input object.
 
 * payload_skip : This option is used to skip the registration of the field on payload object.
+
+* id : This option is used to expose the field as graphQL ID. Only string field can be tagged with this option.
