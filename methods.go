@@ -2,10 +2,12 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"strings"
 
 	"github.com/golang/protobuf/proto"
+	pgd "github.com/golang/protobuf/protoc-gen-go/descriptor"
 	pgs "github.com/lyft/protoc-gen-star"
 	pbt "go.appointy.com/protoc-gen-jaal/schema"
 )
@@ -543,7 +545,12 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 
 		}
 
-		if strings.ToLower(fields.Name().String()) == "id" {
+		idOption, err := m.IdOption(fields)
+		if err != nil {
+			return "", err
+		}
+
+		if strings.ToLower(fields.Name().String()) == "id" || idOption {
 
 			msgArg += "schemabuilder.ID"
 			tVal += "source.Value"
@@ -782,7 +789,12 @@ func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]str
 
 		}
 
-		if strings.ToLower(fields.Name().String()) == "id" {
+		idOption, err := m.IdOption(fields)
+		if err != nil {
+			return "", err
+		}
+
+		if strings.ToLower(fields.Name().String()) == "id" || idOption {
 
 			msgArg += "schemabuilder.ID"
 			tVal += "schemabuilder."
@@ -1164,7 +1176,12 @@ func (m *jaalModule) ServiceInput(service pgs.Service) (string, error) {
 				name := field.Name().UpperCamelCase().String()
 				tType := ""
 
-				if strings.ToLower(name) == "id" {
+				idOption, err := m.IdOption(field)
+				if err != nil {
+					return "", err
+				}
+
+				if strings.ToLower(name) == "id" || idOption {
 
 					tType = "schemabuilder.ID"
 					if field.Type().IsRepeated() {
@@ -1741,7 +1758,13 @@ func (m *jaalModule) ServiceStructInputFunc(service pgs.Service, initFunctionsNa
 			fName := ipField.Name().LowerCamelCase().String()
 			tval := ""
 			funcPara := ""
-			if strings.ToLower(fName) == "id" {
+
+			idOption, err := m.IdOption(ipField)
+			if err != nil {
+				return "", err
+			}
+
+			if strings.ToLower(fName) == "id" || idOption {
 				funcPara = "*schemabuilder.ID"
 				tval = "source.Value"
 				if ipField.Type().IsRepeated() {
@@ -1909,4 +1932,23 @@ func (m *jaalModule) ServiceStructPayloadFunc(service pgs.Service, initFunctions
 	}
 
 	return buf.String(), nil
+}
+
+func (m *jaalModule) IdOption(field pgs.Field) (bool, error) {
+	opt := field.Descriptor().GetOptions()
+	if opt != nil {
+		x, err := proto.GetExtension(opt, pbt.E_Id)
+		if err != proto.ErrMissingExtension {
+			return false, err
+		}
+
+		option := *x.((*bool))
+		if option == true && *field.Descriptor().Type != pgd.FieldDescriptorProto_TYPE_STRING {
+			return false, fmt.Errorf("id can be used to tag string fields only")
+		}
+
+		return option, nil
+	}
+
+	return false, nil
 }
