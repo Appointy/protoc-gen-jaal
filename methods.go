@@ -465,9 +465,7 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 	msg := InputClass{Name: embeddedMessageParent + inputData.Name().UpperCamelCase().String()}
 
 	newName, err := m.GetMessageName(inputData)
-
 	if err != nil {
-
 		return "", err
 
 	} else if newName != "" {
@@ -519,6 +517,12 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 			continue
 		}
 
+		overrideFieldName, nameToBeOverridden, err := m.getFieldNameOption(fields)
+		if err != nil {
+			m.Log("In Input")
+			return "", err
+		}
+
 		msgArg := ""
 		tVal := ""
 		flag := true
@@ -526,6 +530,10 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 		flag3 := true
 		fieldName := fields.Name().LowerCamelCase().String()
 		targetName := fields.Name().UpperCamelCase().String()
+
+		if overrideFieldName {
+			fieldName = nameToBeOverridden
+		}
 
 		if fields.Type().IsRepeated() {
 
@@ -779,9 +787,17 @@ func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]str
 			continue
 		}
 
+		overrideFieldName, nameToBeOverridden, err := m.getFieldNameOption(fields)
+		if err != nil {
+			return "", err
+		}
+
 		msgArg := ""
 		tVal := ""
 		fieldName := fields.Name().LowerCamelCase().String()
+		if overrideFieldName {
+			fieldName = nameToBeOverridden
+		}
 
 		if fields.Type().IsRepeated() {
 
@@ -1021,32 +1037,42 @@ func (m *jaalModule) InputAppend(str string) string {
 	}
 }
 
+func (m *jaalModule) getFieldNameOption(field pgs.Field) (bool, string, error) {
+	opt := field.Descriptor().GetOptions()
+	if opt == nil {
+		return false, "", nil
+	}
+
+	x, err := proto.GetExtension(opt, pbt.E_FieldName)
+	if err != nil {
+		if err == proto.ErrMissingExtension {
+			return false, "", nil
+		}
+		return false, "", err
+	}
+
+	option := *x.(*string)
+	return true, option, nil
+}
+
 func (m *jaalModule) GetFieldOptionInput(field pgs.Field) (bool, error) {
 	//returns input_skip option for a message field
 
 	opt := field.Descriptor().GetOptions()
-	x, err := proto.GetExtension(opt, pbt.E_InputSkip)
-
 	if opt == nil {
-
 		return false, nil
-
 	}
 
+	x, err := proto.GetExtension(opt, pbt.E_InputSkip)
 	if err != nil {
-
 		if err == proto.ErrMissingExtension {
-
 			return false, nil
-
 		}
 
 		return false, err
-
 	}
 
 	option := *x.(*bool)
-
 	return option, nil
 }
 
@@ -1939,7 +1965,7 @@ func (m *jaalModule) IdOption(field pgs.Field) (bool, error) {
 	if opt != nil {
 		x, err := proto.GetExtension(opt, pbt.E_Id)
 		if err == proto.ErrMissingExtension {
-			return false, err
+			return false, nil
 		}
 
 		option := *x.((*bool))

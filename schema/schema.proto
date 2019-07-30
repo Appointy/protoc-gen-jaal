@@ -33,6 +33,8 @@ extend google.protobuf.FieldOptions{
     bool payload_skip = 91116;
     // id is used to expose the field as graphQL ID. Only string field can be tagged with this option.
     bool id = 91120;
+    // field_name is used to change the default name of field on graphql schema.
+    string field_name = 91121;
 }
 
 message MethodOptions {
