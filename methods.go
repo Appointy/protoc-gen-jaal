@@ -1159,7 +1159,7 @@ func (m *jaalModule) ServiceInput(service pgs.Service) (string, error) {
 		if option.GetMutation() == "" {
 
 			fieldName := option.GetQuery()
-			firstReturnArgType := "*"
+			firstReturnArgType := ""
 			if rpc.Output().Package().ProtoName().String() != service.Package().ProtoName().String() {
 				firstReturnArgType += m.GetGoPackage(rpc.Output().File())
 				firstReturnArgType += "."
@@ -1356,8 +1356,8 @@ func (m *jaalModule) ServiceInput(service pgs.Service) (string, error) {
 
 			fieldName := option.GetMutation()
 			inputType := "*" + rpc.Name().UpperCamelCase().String() + "Input"
-			firstReturnArgType := "*" + rpc.Name().UpperCamelCase().String() + "Payload"
-			returnType := "&" + rpc.Name().UpperCamelCase().String() + "Payload"
+			firstReturnArgType := rpc.Name().UpperCamelCase().String() + "Payload"
+			returnType := rpc.Name().UpperCamelCase().String() + "Payload"
 			goPkg := m.GetGoPackageOfFiles(service.File(), rpc.Input().File())
 			if goPkg != "" {
 				goPkg += "."

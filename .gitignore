@@ -16,3 +16,5 @@ protoc-gen-graphql
 .vscode/
 .idea/
 .DS_Store
+protoc-gen-jaal
+protoc-gen-jaal.zip

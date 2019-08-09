@@ -202,7 +202,11 @@ func Register{{.Name}}Operations(schema *schemabuilder.Schema, client {{.Name}}C
 					}
 				{{end}}
 			{{end}}
-			return client{{"."}}{{.ReturnFunc}}(ctx, request)
+			response, err := client{{"."}}{{.ReturnFunc}}(ctx, request)
+			if err!= nil{
+				return {{.FirstReturnArgType}}{}, nil
+			}
+			return *response, nil
 		})
 	{{end}}
 	{{range .Mutations}}
