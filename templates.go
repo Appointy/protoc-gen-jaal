@@ -204,7 +204,7 @@ func Register{{.Name}}Operations(schema *schemabuilder.Schema, client {{.Name}}C
 			{{end}}
 			response, err := client{{"."}}{{.ReturnFunc}}(ctx, request)
 			if err!= nil{
-				return nil, err
+				return {{.FirstReturnArgType}}{}, nil
 			}
 			return *response, nil
 		})
