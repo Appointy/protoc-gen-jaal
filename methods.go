@@ -14,7 +14,7 @@ import (
 
 type Value struct {
 	Value string
-	Index int
+	Index int32
 }
 
 type enum struct {
@@ -161,19 +161,15 @@ func (m *jaalModule) EnumType(enumData pgs.Enum, imports map[string]string, init
 
 	initFunctionsName["Register"+enumval.Name] = true
 
-	for i, val := range enumData.Values() {
-
-		enumval.Values = append(enumval.Values, Value{Value: val.Name().String(), Index: i})
-
+	for _, val := range enumData.Values() {
+		enumval.Values = append(enumval.Values, Value{Value: val.Name().String(), Index: val.Value()})
 	}
 
 	tmp := getEnumTemplate()
 	buf := &bytes.Buffer{}
 
 	if err := tmp.Execute(buf, enumval); err != nil {
-
 		return "", err
-
 	}
 
 	return buf.String(), nil
