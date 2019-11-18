@@ -1,6 +1,6 @@
-# protoc-gen-jaal - Develop relay compliant GraphQL servers
+# protoc-gen-jaal - Develop Relay compliant GraphQL servers
 
-protoc-gen-jaal is a protoc plugin which is used to generate jaal APIs. The server built from these APIs is graphQL spec compliant as well as relay compliant. It also handles oneOf by registering it as a Union on the schema.
+protoc-gen-jaal is a protoc plugin used to generate [Jaal](https://github.com/appointy/jaal) APIs. The server built from these APIs is GraphQL spec compliant as well as Relay compliant. protoc-gen-jaal also handles oneOf by registering it as a Union on the schema.
 
 ## Getting Started
 
@@ -49,7 +49,7 @@ message Customer {
 }
 ```
 
-protoc-gen-jaal uses the method option schema to determine whether to register the rpc as query or as mutation. If an rpc is not tagged, then it will not be registered on the schema. To generate relay compliant servers, protoc-gen-jaal generates the input and payload of each mutation with clientMutationId. The graphql schema of above example is as follows:
+protoc-gen-jaal uses the method option *schema* to determine whether to register an rpc as query or as mutation. If an *rpc* is not tagged, then it will not be registered on the GraphQL schema. To generate Relay compliant servers, protoc-gen-jaal generates the input and payload of each mutation with clientMutationId. The graphql schema of above example is as follows:
 
 ```GraphQl Schema
 input CreateCustomerInput {
@@ -82,10 +82,10 @@ type Query {
 
 ### Installing
 
-The installation of protoc-gen-jaal gen be done directly by running go get.
+The installation of protoc-gen-jaal can be done directly by running go get.
 
 ```
-go get github.com/appointy/protoc-gen-jaal
+go get go.appointy.com/protoc-gen-jaal
 ```
 
 ### Usage
@@ -96,13 +96,13 @@ For a proto file customer.proto, the corresponding code is generated in customer
 protoc \
   -I . \
   -I ${GOPATH}/src \
-  -I ${GOPATH}/src/github.com/appointy/protoc-gen-jaal \
+  -I ${GOPATH}/src/go.appointy.com/protoc-gen-jaal \
   --go_out=grpc=plugins:. \
   --jaal_out:. \
   customer.proto && goimports -w .
 ```
 
-protoc-gen-jaal generates the code to register each message as input and payload. The payload is registered with the name of message. The input is registered with the name of message suffixed with "Input". protoc-gen-jaal implicitly registers field named id as graphQL ID.
+protoc-gen-jaal generates the code to register each message as input and payload. The payload is registered with the name of message. The input is registered with the name of message suffixed with "Input". protoc-gen-jaal implicitly registers field named id as GraphQL ID.
 
 ## Available Options
 
@@ -130,4 +130,4 @@ The behaviour of protoc-gen-jaal can be modified using the following options:
 
 * payload_skip : This option is used to skip the registration of the field on payload object.
 
-* id : This option is used to expose the field as graphQL ID. Only string field can be tagged with this option.
+* id : This option is used to expose the field as GraphQL ID. Only string field can be tagged with this option.
