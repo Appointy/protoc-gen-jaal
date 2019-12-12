@@ -711,6 +711,7 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 		typeCastMap[val] = msg.Name
 		msg.Type = val
 		msg.Name = msg.Type
+		msg.InputObjName = val + "Input"
 		tbuf := &bytes.Buffer{}
 		if err := tmp.Execute(tbuf, msg); err != nil {
 			return "", err
@@ -954,6 +955,7 @@ func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]str
 		typeCastMap[val] = msg.Name
 		msg.Type = val
 		msg.Name = msg.Type
+		msg.PayloadObjName = val
 		tbuf := &bytes.Buffer{}
 		if err := tmp.Execute(tbuf, msg); err != nil {
 			return "", err
