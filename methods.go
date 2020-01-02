@@ -734,11 +734,11 @@ func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]str
 	}
 
 	fullyQualifiedName := payloadData.FullyQualifiedName()
+	names := strings.Split(fullyQualifiedName, ".")
 	embeddedMessageParent := ""
-	if payloadData.Parent().Name().String() == strings.Split(fullyQualifiedName, ".")[len(strings.Split(fullyQualifiedName, "."))-2] {
-		lenPackage := len(payloadData.Package().ProtoName().String())
-		endlength := len(payloadData.Name().String())
-		embeddedMessageParent = strings.Replace(fullyQualifiedName[lenPackage+2:len(fullyQualifiedName)-endlength], ".", "_", -1)
+	if payloadData.Parent().Name().String() == names[len(names)-2] {
+
+		embeddedMessageParent = strings.Join(names[1:len(names)-1], "_") + "_"
 	}
 	msg := Payload{Name: embeddedMessageParent + payloadData.Name().UpperCamelCase().String()}
 	newName, err := m.GetMessageName(payloadData)
@@ -833,9 +833,8 @@ func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]str
 					msgArg += "."
 				} else {
 					if strings.Split(tObj.Embed().FullyQualifiedName(), ".")[len(strings.Split(tObj.Embed().FullyQualifiedName(), "."))-2] == tObj.Embed().Parent().Name().String() {
-						tlenPackage := len(fields.Package().ProtoName().String())
-						tendlength := len(fields.Name().String())
-						tembeddedMessageParent := strings.Replace(fields.FullyQualifiedName()[tlenPackage+2:len(fields.FullyQualifiedName())-tendlength], ".", "_", -1)
+						names := strings.Split(fields.FullyQualifiedName(), ".")
+						tembeddedMessageParent := strings.Join(names[1:len(names)-1], "_") + "_"
 						msgArg += tembeddedMessageParent
 					}
 				}
@@ -865,9 +864,8 @@ func (m *jaalModule) PayloadType(payloadData pgs.Message, imports map[string]str
 					msgArg += "."
 				} else {
 					if strings.Split(fields.FullyQualifiedName(), ".")[len(strings.Split(fields.FullyQualifiedName(), "."))-2] == fields.Type().Embed().Parent().Name().String() {
-						tlenPackage := len(fields.Package().ProtoName().String())
-						tendlength := len(fields.Name().String())
-						tembeddedMessageParent := strings.Replace(fields.FullyQualifiedName()[tlenPackage+2:len(fields.FullyQualifiedName())-tendlength], ".", "_", -1)
+						names := strings.Split(fields.FullyQualifiedName(), ".")
+						tembeddedMessageParent := strings.Join(names[1:len(names)-1], "_") + "_"
 						msgArg += tembeddedMessageParent
 					}
 				}
