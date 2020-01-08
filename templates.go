@@ -389,8 +389,8 @@ func RegisterInput{{.Name}}Input(schema *schemabuilder.Schema) {
 		}
 		target.{{.Name}}=array
 	}){{end}}
-	input.FieldFunc("clientMutationId", func(target *{{.Name}}Input, source *string) {
-		target.ClientMutationId = *source
+	input.FieldFunc("clientMutationId", func(target *{{.Name}}Input, source string) {
+		target.ClientMutationId = source
 	})
 }
 {{end}}

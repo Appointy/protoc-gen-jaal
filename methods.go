@@ -642,8 +642,8 @@ func (m *jaalModule) InputType(inputData pgs.Message, imports map[string]string,
 		} else {
 
 			tmsg := strings.Split(fields.Descriptor().GetType().String(), "_")
-			msgArg += m.scalarMap(tmsg[len(tmsg)-1])
-
+			msgArg = m.scalarMap(tmsg[len(tmsg)-1])
+			flag = false
 		}
 
 		if flag {
