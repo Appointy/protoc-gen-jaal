@@ -1846,12 +1846,12 @@ func (m *jaalModule) ServiceStructInputFunc(service pgs.Service, initFunctionsNa
 				maps = append(maps, InputMap{FieldName: fName, TargetVal: "*source", TargetName: ipField.Name().UpperCamelCase().String(), Key: m.fieldElementType(ipField.Type().Key()), Value: value})
 				continue
 			} else {
+				var scalar = false
 				if ipField.Descriptor().GetType().String() == "TYPE_MESSAGE" {
 					tval = "source"
-
 				} else {
-					tval = "*source"
-
+					scalar = true
+					tval = "source"
 				}
 
 				funcPara = m.RPCFieldType(ipField)
@@ -1876,7 +1876,10 @@ func (m *jaalModule) ServiceStructInputFunc(service pgs.Service, initFunctionsNa
 						goPkg += "."
 					}
 				}
-				funcPara = "*" + goPkg + funcPara
+
+				if !scalar {
+					funcPara = "*" + goPkg + funcPara
+				}
 			}
 			if strings.HasSuffix(funcPara, "*timestamp.Timestamp") {
 				funcPara = funcPara[:len(funcPara)-19] + "schemabuilder.Timestamp"
